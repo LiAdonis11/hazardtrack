@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `push_token` VARCHAR(255) NULL DEFAULT NULL AFTER `role`;

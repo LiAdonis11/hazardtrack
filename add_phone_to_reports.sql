@@ -1,0 +1,1 @@
+ALTER TABLE `hazard_reports` ADD `phone` VARCHAR(30) NULL DEFAULT NULL AFTER `longitude`;
