@@ -1,20 +1,21 @@
 <?php
-$conn = new mysqli('localhost', 'root', '', 'hazardtrack_dbv2', 3307);
-if ($conn->connect_error) {
-    die('Connection failed: ' . $conn->connect_error);
-}
+include 'api/db.php';
 
-echo "Data in hazard_reports table:\n";
-$result = $conn->query('SELECT id, user_id, title, description FROM hazard_reports LIMIT 10');
+$result = $conn->query('DESCRIBE hazard_reports');
+echo "hazard_reports table structure:\n";
 while ($row = $result->fetch_assoc()) {
-    echo 'ID: ' . $row['id'] . ', User ID: ' . $row['user_id'] . ', Title: ' . $row['title'] . ', Description: ' . substr($row['description'], 0, 50) . "...\n";
+    echo "  {$row['Field']}: {$row['Type']} {$row['Null']} {$row['Key']} {$row['Default']} {$row['Extra']}\n";
 }
 
-echo "\nReports for user ID 4:\n";
-$result = $conn->query('SELECT id, user_id, title FROM hazard_reports WHERE user_id = 4');
+// Check a sample report
+echo "\nSample report data:\n";
+$result = $conn->query('SELECT id, report_number, image_path FROM hazard_reports WHERE image_path IS NOT NULL LIMIT 5');
 while ($row = $result->fetch_assoc()) {
-    echo 'ID: ' . $row['id'] . ', User ID: ' . $row['user_id'] . ', Title: ' . $row['title'] . "\n";
+    echo "  ID: {$row['id']}, Report: {$row['report_number']}, Image: {$row['image_path']}\n";
+    if (file_exists($row['image_path'])) {
+        echo "    EXISTS on disk\n";
+    } else {
+        echo "    NOT FOUND on disk\n";
+    }
 }
-
-$conn->close();
 ?>

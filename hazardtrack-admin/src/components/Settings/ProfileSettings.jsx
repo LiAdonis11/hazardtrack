@@ -20,9 +20,10 @@ export default function ProfileSettings() {
   useEffect(() => {
     if (user) {
       setProfile({
-        name: user.name || '',
+        name: user.fullname || '',
         email: user.email || '',
-        phone: user.phone || ''
+        phone: user.phone || '',
+        address: user.address || ''
       });
     }
   }, [user]);
@@ -34,13 +35,18 @@ export default function ProfileSettings() {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/update_profile.php`, {
+      const response = await fetch(`${API_URL}/update_user_profile.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(profile)
+        body: JSON.stringify({
+          fullname: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          address: profile.address
+        })
       });
 
       if (response.ok) {
@@ -155,6 +161,18 @@ export default function ProfileSettings() {
                 type="tel"
                 value={profile.phone}
                 onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address
+              </label>
+              <input
+                type="text"
+                value={profile.address}
+                onChange={(e) => setProfile({ ...profile, address: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>

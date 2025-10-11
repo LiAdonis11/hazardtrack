@@ -80,10 +80,10 @@ if (!$payload) {
     exit();
 }
 
-// Check if user has admin or bfp_personnel role
-if ($payload['role'] !== 'admin' && $payload['role'] !== 'bfp_personnel') {
+// Check if user has admin or inspector role
+if ($payload['role'] !== 'admin' && $payload['role'] !== 'inspector') {
     http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'Admin or BFP personnel access required']);
+    echo json_encode(['status' => 'error', 'message' => 'Admin or Inspector access required']);
     exit();
 }
 

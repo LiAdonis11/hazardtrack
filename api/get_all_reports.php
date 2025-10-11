@@ -90,14 +90,87 @@ if ($payload['role'] !== 'admin' && $payload['role'] !== 'inspector') {
 }
 
 // Get filter parameters from query string
+$id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $assigned_to_me = isset($_GET['assigned_to_me']) && $_GET['assigned_to_me'] === 'true';
+$status = isset($_GET['status']) ? $_GET['status'] : '';
+$hazard_type = isset($_GET['hazard_type']) ? $_GET['hazard_type'] : '';
+$barangay = isset($_GET['barangay']) ? $_GET['barangay'] : '';
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
 $user_id = $payload['user_id']; // Use 'user_id' from JWT payload
+
+if ($id !== null) {
+    $limit = 1;
+    $offset = 0;
+} else {
+    $offset = ($page - 1) * $limit;
+}
 
 // Fetch reports from the database with user, category, and inspector assignment information
 try {
+    // Build WHERE conditions
+    $where_conditions = [];
+    $params = [];
+    $types = '';
+
+    // Exclude deleted reports
+    $where_conditions[] = "hr.status != 'deleted'";
+
+    if ($id !== null) {
+        $where_conditions[] = "hr.id = ?";
+        $params[] = $id;
+        $types .= 'i';
+    }
+
+    if ($assigned_to_me) {
+        $where_conditions[] = "hr.id IN (SELECT report_id FROM assignments WHERE assigned_to = ? AND status != 'cancelled')";
+        $params[] = $user_id;
+        $types .= 'i';
+    }
+
+    if (!empty($status)) {
+        $where_conditions[] = "hr.status = ?";
+        $params[] = $status;
+        $types .= 's';
+    }
+
+    if (!empty($hazard_type)) {
+        $where_conditions[] = "c.name = ?";
+        $params[] = $hazard_type;
+        $types .= 's';
+    }
+
+    if (!empty($barangay)) {
+        $where_conditions[] = "hr.location_address LIKE ?";
+        $params[] = '%' . $barangay . '%'; // Match barangay name anywhere in address
+        $types .= 's';
+    }
+
+    $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+
+    // Count total
+    $count_query = "
+        SELECT COUNT(DISTINCT hr.id) as total
+        FROM hazard_reports hr
+        LEFT JOIN categories c ON hr.category_id = c.id
+        LEFT JOIN assignments a ON hr.id = a.report_id
+        $where_clause
+    ";
+
+    $count_stmt = $conn->prepare($count_query);
+    if (!empty($params)) {
+        $count_stmt->bind_param($types, ...$params);
+    }
+    $count_stmt->execute();
+    $count_result = $count_stmt->get_result();
+    $total = $count_result->fetch_assoc()['total'];
+    $count_stmt->close();
+
+    // Main query
     $query = "
         SELECT
             hr.id,
+            hr.report_number,
             hr.title,
             hr.description,
             hr.status,
@@ -110,6 +183,7 @@ try {
             hr.latitude,
             hr.longitude,
             hr.image_path,
+            COALESCE(hr.phone, u.phone) as phone,
             u.fullname as user_fullname,
             u.email as user_email,
             c.name as category_name,
@@ -118,27 +192,21 @@ try {
             MAX(a.notes) as assignment_notes,
             MAX(a.assigned_at) as assigned_at,
             MAX(iu.fullname) as inspector_fullname,
-            MAX(iu.email) as inspector_email,
-            0 as is_unsure
+            MAX(iu.email) as inspector_email
         FROM hazard_reports hr
         LEFT JOIN users u ON hr.user_id = u.id
         LEFT JOIN categories c ON hr.category_id = c.id
         LEFT JOIN assignments a ON hr.id = a.report_id
         LEFT JOIN users iu ON a.assigned_to = iu.id
+        $where_clause
+        GROUP BY hr.id ORDER BY hr.created_at DESC
+        LIMIT ? OFFSET ?
     ";
 
-    // Add filter for assigned to me if requested
-    if ($assigned_to_me) {
-        $query .= " WHERE hr.id IN (SELECT report_id FROM assignments WHERE assigned_to = ? AND status != 'cancelled')";
-    }
-
-    $query .= " GROUP BY hr.id ORDER BY hr.created_at DESC";
-
     $stmt = $conn->prepare($query);
-
-    if ($assigned_to_me) {
-        $stmt->bind_param("i", $user_id);
-    }
+    $all_params = array_merge($params, [$limit, $offset]);
+    $all_types = $types . 'ii';
+    $stmt->bind_param($all_types, ...$all_params);
 
     $stmt->execute();
     $result = $stmt->get_result();
@@ -148,7 +216,24 @@ try {
         $reports[] = $row;
     }
 
-    echo json_encode(['status' => 'success', 'reports' => $reports]);
+    // Add base URL for image_path
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $baseUrl = $protocol . '://' . $host . '/hazardTrackV2';
+    foreach ($reports as &$r) {
+      if (!empty($r['image_path']) && !str_starts_with($r['image_path'], 'http')) {
+        $r['image_path'] = $baseUrl . '/' . $r['image_path'];
+      }
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'reports' => $reports,
+        'total' => $total,
+        'page' => $page,
+        'limit' => $limit,
+        'total_pages' => ceil($total / $limit)
+    ]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => 'Failed to fetch reports: ' . $e->getMessage()]);

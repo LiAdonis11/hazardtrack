@@ -39,10 +39,13 @@ export const API_ENDPOINTS = {
   GET_REPORTS: '/get_all_reports.php',
   GET_ALL_REPORTS: '/get_all_reports.php',
   UPDATE_REPORT_STATUS: '/update_report_status.php',
+  UPDATE_REPORT_DETAILS: '/update_report_details.php',
   EXPORT_REPORTS: '/export_reports.php',
   ASSIGN_INSPECTOR: '/assign_inspector.php',
   GET_INSPECTORS: '/assign_inspector.php',
   GET_INSPECTOR_ASSIGNMENTS: '/get_inspector_assignments.php',
+  GET_NOTIFICATIONS: '/get_notifications.php',
+  MARK_NOTIFICATION_READ: '/mark_notification_read.php',
 };
 
 // Error messages

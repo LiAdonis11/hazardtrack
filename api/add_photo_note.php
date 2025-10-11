@@ -49,7 +49,7 @@ try {
     }
 
     // Validate report exists and user has access
-    $conn = new mysqli('localhost', 'root', '', 'hazardtrack_db', 3306);
+    $conn = new mysqli('localhost', 'root', '', 'hazardtrack_dbv2', 3306);
     if ($conn->connect_error) {
         http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => 'Database connection failed']);
@@ -70,8 +70,8 @@ try {
 
     // Insert photo/note
     $stmt = $conn->prepare("
-        INSERT INTO photo_notes (id, report_id, type, content, timestamp, location_lat, location_lng, file_name, file_size, mime_type, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO photo_notes (id, report_id, type, content, location_lat, location_lng, file_name, file_size, mime_type, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $locationLat = isset($photoNote['location']) ? $photoNote['location']['latitude'] : null;
@@ -81,12 +81,11 @@ try {
     $mimeType = isset($photoNote['metadata']) ? $photoNote['metadata']['mimeType'] : null;
 
     $stmt->bind_param(
-        "sisssddsssi",
+        "sissddsssi",
         $photoNote['id'],
         $photoNote['reportId'],
         $photoNote['type'],
         $photoNote['content'],
-        $photoNote['timestamp'],
         $locationLat,
         $locationLng,
         $fileName,

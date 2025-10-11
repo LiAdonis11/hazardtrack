@@ -20,7 +20,7 @@ function generateJWT($user_id, $email, $role) {
         'email' => $email,
         'role' => $role,
         'iat' => time(), // Issued at
-        'exp' => time() + (60 * 60 * 24) // Expire in 24 hours
+        'exp' => time() + (60 * 60 * 24 * 7) // Expire in 7 days (increased from 24 hours)
     ]);
 
     // Encode Header to Base64Url String
@@ -57,10 +57,9 @@ function validateJWT($jwt) {
 
     // Check expiration
     $payloadDecoded = json_decode($payload, true);
-    // Temporarily disable expiration check for testing
-    // if (isset($payloadDecoded['exp']) && $payloadDecoded['exp'] < time()) {
-    //     return false;
-    // }
+    if (isset($payloadDecoded['exp']) && $payloadDecoded['exp'] < time()) {
+        return false;
+    }
 
     // Build a signature based on the original encoded header and payload parts
     $signature = hash_hmac('sha256', $tokenParts[0] . "." . $tokenParts[1], JWT_SECRET, true);

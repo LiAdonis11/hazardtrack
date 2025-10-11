@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Login from './Login';
 import Dashboard from './DashboardNew';
 import Reports from './Reports';
@@ -18,6 +19,15 @@ import { useAuth } from './hooks/useAuth';
 import { ROLES } from './config';
 import Layout from './components/Layout';
 import './App.css';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2, // 2 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes
+    },
+  },
+});
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { isAuthenticated, user } = useAuth();
@@ -46,45 +56,47 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <div className="App">
-        <Routes>
-          <Route
-            path="/login"
-            element={<Login />}
-          />
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/hazard-reports" element={<HazardReports />} />
-            <Route path="/reports/:id" element={<ReportDetails />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <div className="App">
+          <Routes>
             <Route
-              path="/user-management"
+              path="/login"
+              element={<Login />}
+            />
+            <Route
               element={
-                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.BFP]}>
-                  <UserManagement />
+                <ProtectedRoute>
+                  <Layout />
                 </ProtectedRoute>
               }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/hazard-reports" element={<HazardReports />} />
+              <Route path="/reports/:id" element={<ReportDetails />} />
+              <Route
+                path="/user-management"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.BFP]}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/analytics-reports" element={<AnalyticsReports />} />
+              <Route path="/notifications/real-time-alerts" element={<NotificationsPanel />} />
+              <Route path="/notifications/resident-personnel-updates" element={<NotificationsPanel />} />
+              <Route path="/audit-logs/activity-log" element={<AuditLogs />} />
+              <Route path="/audit-logs/security-log" element={<AuditLogs />} />
+              <Route path="/system-settings" element={<SystemSettings />} />
+            </Route>
+            <Route
+              path="/"
+              element={<Navigate to="/dashboard" replace />}
             />
-            <Route path="/analytics-reports" element={<AnalyticsReports />} />
-            <Route path="/notifications/real-time-alerts" element={<NotificationsPanel />} />
-            <Route path="/notifications/resident-personnel-updates" element={<NotificationsPanel />} />
-            <Route path="/audit-logs/activity-log" element={<AuditLogs />} />
-            <Route path="/audit-logs/security-log" element={<AuditLogs />} />
-            <Route path="/system-settings" element={<SystemSettings />} />
-          </Route>
-          <Route
-            path="/"
-            element={<Navigate to="/dashboard" replace />}
-          />
-        </Routes>
-      </div>
-    </AuthProvider>
+          </Routes>
+        </div>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

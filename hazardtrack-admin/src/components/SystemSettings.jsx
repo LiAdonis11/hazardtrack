@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import ProfileSettings from './Settings/ProfileSettings';
 import SystemConfigurations from './SystemSettings/SystemConfigurations';
-import BackupRestore from './SystemSettings/BackupRestore';
 
 const SystemSettings = () => {
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
     { id: 'profile', label: 'Profile Settings', component: ProfileSettings },
-    { id: 'configurations', label: 'System Configurations', component: SystemConfigurations },
-    { id: 'backup', label: 'Backup & Restore', component: BackupRestore }
+    { id: 'system', label: 'System Configurations', component: SystemConfigurations }
   ];
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;
@@ -18,7 +16,7 @@ const SystemSettings = () => {
     <div className="system-settings-container">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">System Settings</h1>
-        <p className="text-gray-600">Manage system configurations and backups</p>
+        <p className="text-gray-600">Manage your account, profile, and system configurations</p>
       </div>
 
       {/* Tabs */}
@@ -42,7 +40,7 @@ const SystemSettings = () => {
         </div>
       </div>
 
-      {/* Active Tab Content */}
+      {/* Tab Content */}
       <div className="tab-content">
         {ActiveComponent && <ActiveComponent />}
       </div>

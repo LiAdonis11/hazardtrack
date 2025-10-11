@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import NotificationsDropdown from './NotificationsDropdown';
 
 const Header = ({ user, onToggleSidebar, onLogout, isMobile, sidebarOpen }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -35,34 +36,35 @@ const Header = ({ user, onToggleSidebar, onLogout, isMobile, sidebarOpen }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <h1 className="text-xl font-bold text-primary font-josefin-sans">HazardTrack Dashboard</h1>
+          <img src="/hazartrack-logo.png" alt="HazardTrack" className="w-8 h-8" />
+          <h1 className="text-xl font-bold text-primary">HazardTrack Dashboard</h1>
         </div>
 
         <div className="flex items-center space-x-4">
-          {/* Search input - hide on mobile when sidebar is open */}
+          {/* Partnership logos */}
+          <div className="hidden md:flex items-center space-x-2 text-xs text-gray-500">
+            <span>In partnership with</span>
+            <img src="/tagudin-logo.png" alt="Tagudin LGU" className="w-6 h-6" />
+            <img src="/bfp-logo.png" alt="BFP" className="w-6 h-6" />
+          </div>
+
+          {/* Search input - hide on mobile when sidebar is open
           {(!isMobile || !sidebarOpen) && (
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search reports..."
-                className="px-4 py-2 pl-10 bg-gray-100 border border-gray-200 rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-montserrat"
+                className="px-4 py-2 pl-10 bg-neutral-50 border border-gray-200 rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
               <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-          )}
+          )} */}
 
           {/* Notifications - hide on mobile when sidebar is open */}
           {(!isMobile || !sidebarOpen) && (
-            <button
-              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 text-gray-600"
-              title="Notifications"
-            >
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </button>
+            <NotificationsDropdown user={user} />
           )}
 
           {/* User menu */}
@@ -71,12 +73,12 @@ const Header = ({ user, onToggleSidebar, onLogout, isMobile, sidebarOpen }) => {
               onClick={handleUserMenuToggle}
               className="flex items-center space-x-3 p-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 text-gray-600"
             >
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-sm font-bold text-white">
+              <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center text-sm font-bold text-white">
                 {getUserInitials(user?.fullname)}
               </div>
               <div className="hidden md:block text-left">
-                <div className="text-sm font-medium font-montserrat">{user?.fullname}</div>
-                <div className="text-xs text-gray-500 font-montserrat">
+                <div className="text-sm font-medium">{user?.fullname}</div>
+                <div className="text-xs text-gray-500">
                   {user?.role === 'admin' ? 'Administrator' : 'BFP Personnel'}
                 </div>
               </div>

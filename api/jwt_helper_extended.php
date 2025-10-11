@@ -7,7 +7,7 @@ define('JWT_ALGORITHM', 'HS256');
 /**
  * Generate JWT token
  */
-function generateJWT($user_id, $email, $role) {
+function generateJWT($user_id, $email, $role, $fullname = null) {
     // Create token header as a JSON string
     $header = json_encode([
         'typ' => 'JWT',
@@ -19,6 +19,7 @@ function generateJWT($user_id, $email, $role) {
         'user_id' => $user_id,
         'email' => $email,
         'role' => $role,
+        'fullname' => $fullname,
         'iat' => time(), // Issued at
         'exp' => time() + (60 * 60 * 24 * 7) // Expire in 7 days (increased from 24 hours)
     ]);
@@ -90,11 +91,11 @@ function base64UrlEncode($text) {
  * Base64Url Decode
  */
 function base64UrlDecode($text) {
-    return base64_decode(str_replace(
-        ['-', '_'],
-        ['+', '/'],
-        $text
-    ));
+    $remainder = strlen($text) % 4;
+    if ($remainder) {
+        $text .= str_repeat('=', 4 - $remainder);
+    }
+    return base64_decode(str_replace(['-', '_'], ['+', '/'], $text));
 }
 
 /**

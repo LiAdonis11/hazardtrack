@@ -3,9 +3,10 @@ include 'db.php';
 include 'jwt_helper.php';
 
 // Essential CORS headers
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: http://localhost:5173");
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
-header("Access-Control-Allow-Methods: POST, PUT");
+header("Access-Control-Allow-Methods: POST, PUT, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
 
 // Handle preflight OPTIONS request
@@ -29,7 +30,7 @@ function getAuthorizationHeader(){
         $headers = trim($_SERVER['HTTP_AUTHORIZATION']);
     } elseif (function_exists('apache_request_headers')) {
         $requestHeaders = apache_request_headers();
-        // Server-side fix for bug in old Android versions (a nice side-effect of this fix means we don't care about capitalization for Authorization)
+        // normalize header keys (Authorization)
         $requestHeaders = array_combine(array_map('ucwords', array_keys($requestHeaders)), array_values($requestHeaders));
         if (isset($requestHeaders['Authorization'])) {
             $headers = trim($requestHeaders['Authorization']);
@@ -40,11 +41,8 @@ function getAuthorizationHeader(){
 
 function getBearerTokenFromHeader() {
     $headers = getAuthorizationHeader();
-    // HEADER: Get the access token from the header
-    if (!empty($headers)) {
-        if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
-            return $matches[1];
-        }
+    if (!empty($headers) && preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
+        return $matches[1];
     }
     return null;
 }
@@ -73,6 +71,16 @@ if (!$payload) {
     exit();
 }
 
+// Get updater's fullname from database
+$user_id = $payload['user_id'];
+$stmt_get_user = $conn->prepare("SELECT fullname FROM users WHERE id = ?");
+$stmt_get_user->bind_param("i", $user_id);
+$stmt_get_user->execute();
+$user_res = $stmt_get_user->get_result();
+$user_row = $user_res->fetch_assoc();
+$updater_fullname = $user_row ? $user_row['fullname'] : 'Unknown';
+$stmt_get_user->close();
+
 // Get request data
 $input = json_decode(file_get_contents('php://input'), true);
 $report_id = $input['report_id'] ?? $_POST['report_id'] ?? null;
@@ -85,7 +93,7 @@ if (!$report_id || !$new_status) {
     exit();
 }
 
-// Validate status - Updated to include new verification states
+// Validate status
 $valid_statuses = ['pending', 'in_progress', 'verified', 'resolved', 'rejected', 'closed', 'verified_valid', 'verified_false', 'pending_inspection'];
 if (!in_array($new_status, $valid_statuses)) {
     http_response_code(400);
@@ -94,8 +102,9 @@ if (!in_array($new_status, $valid_statuses)) {
 }
 
 try {
-    // Get current status before updating
+    // --- Get current status before updating
     $stmt_get_old = $conn->prepare("SELECT status FROM hazard_reports WHERE id = ?");
+    if (!$stmt_get_old) throw new Exception("Prepare failed: " . $conn->error);
     $stmt_get_old->bind_param("i", $report_id);
     $stmt_get_old->execute();
     $old_status_res = $stmt_get_old->get_result();
@@ -103,45 +112,91 @@ try {
     $old_status = $old_status_row ? $old_status_row['status'] : null;
     $stmt_get_old->close();
 
-    // Update report status and admin notes
-    $stmt = $conn->prepare("
+    // --- Update report status and append admin notes
+    // Note: use CHAR(10) for newline to avoid PHP string escaping quirks
+    $sql_update = "
         UPDATE hazard_reports
-        SET status = ?, admin_notes = ?, updated_at = NOW()
+        SET status = ?, 
+            admin_notes = CONCAT(IFNULL(admin_notes, ''), IF(admin_notes IS NOT NULL AND admin_notes != '', CHAR(10), ''), ?),
+            updated_at = NOW()
         WHERE id = ?
-    ");
+    ";
+    $stmt = $conn->prepare($sql_update);
+    if (!$stmt) throw new Exception("Prepare failed: " . $conn->error);
     $stmt->bind_param("ssi", $new_status, $admin_notes, $report_id);
     $stmt->execute();
 
     if ($stmt->affected_rows > 0) {
+        $stmt->close();
+
+        // Get updated admin_notes
+        $stmt_get_updated = $conn->prepare("SELECT admin_notes FROM hazard_reports WHERE id = ?");
+        if (!$stmt_get_updated) throw new Exception("Prepare failed: " . $conn->error);
+        $stmt_get_updated->bind_param("i", $report_id);
+        $stmt_get_updated->execute();
+        $updated_res = $stmt_get_updated->get_result();
+        $updated_row = $updated_res->fetch_assoc();
+        $updated_admin_notes = $updated_row ? $updated_row['admin_notes'] : null;
+        $stmt_get_updated->close();
+
         // Log the status change with notes
         $log_stmt = $conn->prepare("
             INSERT INTO status_history (report_id, old_status, new_status, changed_by, change_note, created_at)
             VALUES (?, ?, ?, ?, ?, NOW())
         ");
-        $log_stmt->bind_param("isssi", $report_id, $old_status, $new_status, $payload['user_id'], $admin_notes);
+        if (!$log_stmt) throw new Exception("Prepare failed: " . $conn->error);
+
+        // Correct bind types: report_id (i), old_status (s), new_status (s), changed_by (i), change_note (s)
+        $changed_by = isset($payload['user_id']) ? (int)$payload['user_id'] : null;
+
+        // Check if user exists before logging
+        if ($changed_by) {
+            $stmt_check_user = $conn->prepare("SELECT id FROM users WHERE id = ?");
+            $stmt_check_user->bind_param("i", $changed_by);
+            $stmt_check_user->execute();
+            $user_exists = $stmt_check_user->get_result()->num_rows > 0;
+            $stmt_check_user->close();
+
+            if (!$user_exists) {
+                $changed_by = null; // Set to null if user doesn't exist
+            }
+        }
+
+        $log_stmt->bind_param("issis", $report_id, $old_status, $new_status, $changed_by, $admin_notes);
         $log_stmt->execute();
+        $log_stmt->close();
+
+        // Get report title
+        $stmt_get_title = $conn->prepare("SELECT title FROM hazard_reports WHERE id = ?");
+        if (!$stmt_get_title) throw new Exception("Prepare failed: " . $conn->error);
+        $stmt_get_title->bind_param("i", $report_id);
+        $stmt_get_title->execute();
+        $title_res = $stmt_get_title->get_result();
+        $title_row = $title_res->fetch_assoc();
+        $report_title = $title_row ? $title_row['title'] : 'Unknown Report';
+        $stmt_get_title->close();
 
         // Send push notification to the user
         include 'push_helper.php';
-        $stmt_get_user = $conn->prepare("SELECT u.push_token, hr.title, hr.user_id FROM hazard_reports hr JOIN users u ON hr.user_id = u.id WHERE hr.id = ?");
+        $stmt_get_user = $conn->prepare("SELECT u.push_token, hr.user_id FROM hazard_reports hr JOIN users u ON hr.user_id = u.id WHERE hr.id = ?");
+        if (!$stmt_get_user) throw new Exception("Prepare failed: " . $conn->error);
         $stmt_get_user->bind_param("i", $report_id);
         $stmt_get_user->execute();
         $reporter_user_id = null;
-        if ($user_res = $stmt_get_user->get_result()) {
-            if ($user_row = $user_res->fetch_assoc()) {
-                $reporter_user_id = $user_row['user_id'];
-                if (!empty($user_row['push_token'])) {
-                    $push_token = $user_row['push_token'];
-                    $report_title = $user_row['title'];
-                    $notification_title = 'Report Status Updated';
-                    $notification_body = "The status of your report '" . $report_title . "' has been updated to '" . $new_status . "'.";
-                    send_push_notification($push_token, $notification_title, $notification_body, ['report_id' => $report_id]);
-                }
+        $user_res = $stmt_get_user->get_result();
+        if ($user_res && ($user_row = $user_res->fetch_assoc())) {
+            $reporter_user_id = $user_row['user_id'];
+            if (!empty($user_row['push_token'])) {
+                $push_token = $user_row['push_token'];
+                $notification_title = 'Report Status Updated';
+                $notification_body = "The status of your report '" . $report_title . "' has been updated to '" . $new_status . "'.";
+                // send_push_notification implementation may vary
+                send_push_notification($push_token, $notification_title, $notification_body, ['report_id' => $report_id]);
             }
         }
         $stmt_get_user->close();
 
-        // Insert in-app notification for specific status changes
+        // Insert in-app notification for specific status changes to resident
         $notification_statuses = ['in_progress', 'verified', 'resolved'];
         if (in_array($new_status, $notification_statuses) && $reporter_user_id) {
             $notification_messages = [
@@ -151,9 +206,39 @@ try {
             ];
             $msg = $notification_messages[$new_status];
             $stmt_notify = $conn->prepare("INSERT INTO notifications (user_id, title, body) VALUES (?, ?, ?)");
-            $stmt_notify->bind_param("iss", $reporter_user_id, $msg['title'], $msg['body']);
-            $stmt_notify->execute();
-            $stmt_notify->close();
+            if ($stmt_notify) {
+                $stmt_notify->bind_param("iss", $reporter_user_id, $msg['title'], $msg['body']);
+                $stmt_notify->execute();
+                $stmt_notify->close();
+            }
+        }
+
+        // Notify appropriate personnel about status change based on actor's role
+        $bfp_notification_title = 'Report Status Updated';
+        $role_display = isset($payload['role']) && $payload['role'] === 'inspector' ? 'Inspector' : 'Admin';
+        $bfp_notification_body = "{$role_display} {$updater_fullname} updated '{$report_title}' status to '{$new_status}'";
+        if (!empty($admin_notes)) {
+            $bfp_notification_body .= ". Notes: {$admin_notes}";
+        }
+
+        // Determine recipients based on actor's role
+        $recipient_role = '';
+        if ($payload['role'] === 'admin') {
+            $recipient_role = 'inspector';
+        } elseif ($payload['role'] === 'inspector') {
+            $recipient_role = 'admin';
+        }
+
+        if (!empty($recipient_role)) {
+            $stmt_bfp = $conn->prepare("
+                INSERT INTO notifications (user_id, title, body)
+                SELECT id, ?, ? FROM users WHERE role = ? AND is_active = 1
+            ");
+            if ($stmt_bfp) {
+                $stmt_bfp->bind_param("sss", $bfp_notification_title, $bfp_notification_body, $recipient_role);
+                $stmt_bfp->execute();
+                $stmt_bfp->close();
+            }
         }
 
         echo json_encode([
@@ -162,11 +247,13 @@ try {
             'data' => [
                 'report_id' => $report_id,
                 'new_status' => $new_status,
-                'admin_notes' => $admin_notes,
+                'admin_notes' => $updated_admin_notes,
                 'updated_by' => $payload['user_id']
             ]
         ]);
     } else {
+        // No rows affected
+        $stmt->close();
         http_response_code(404);
         echo json_encode(['status' => 'error', 'message' => 'Report not found or no changes made']);
     }

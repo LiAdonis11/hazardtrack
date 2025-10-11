@@ -83,12 +83,12 @@ if (!empty($role)) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid role']);
         exit();
     }
-    $sql = "SELECT id, fullname, email, password, role, phone, address FROM users WHERE email = ? AND role = ? AND is_active = 1 LIMIT 1";
+    $sql = "SELECT id, fullname, email, password, role, phone, address, is_active FROM users WHERE email = ? AND role = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ss", $email, $role);
 } else {
-    // If no role specified, check for any active user
-    $sql = "SELECT id, fullname, email, password, role, phone, address FROM users WHERE email = ? AND is_active = 1 LIMIT 1";
+    // If no role specified, check for any user
+    $sql = "SELECT id, fullname, email, password, role, phone, address, is_active FROM users WHERE email = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $email);
 }
@@ -104,6 +104,14 @@ if (!$user) {
     exit();
 }
 
+// Check if account is deactivated
+if ($user['is_active'] == 0) {
+    error_log("Login failed - Account deactivated for user: {$user['email']} (ID: {$user['id']})");
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Your account has been deactivated. Please contact support if you believe this is an error.']);
+    exit();
+}
+
 // Verify password
 if (!password_verify($password, $user['password'])) {
     error_log("Login failed - Password verification failed for user: {$user['email']} (ID: {$user['id']})");
@@ -113,7 +121,7 @@ if (!password_verify($password, $user['password'])) {
 }
 
 // Generate JWT token
-$token = generateJWT($user['id'], $user['email'], $user['role']);
+$token = generateJWT($user['id'], $user['email'], $user['role'], $user['fullname']);
 error_log("Generated token: " . $token); // Log the token for debugging
 
 // Prepare response

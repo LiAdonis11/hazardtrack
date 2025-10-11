@@ -116,18 +116,23 @@ export default function Reports({ filter }) {
         })
       });
 
-      if (response.ok) {
+      const result = await response.json();
+
+      if (response.ok && result.status === 'success') {
         // Update local state
         setReports(prevReports =>
           prevReports.map(report =>
             report.id === reportId ? { ...report, status: newStatus } : report
           )
         );
+        console.log('Status updated successfully');
       } else {
-        console.error('Failed to update report status');
+        console.error('Failed to update report status:', result.message || 'Unknown error');
+        alert('Failed to update report status: ' + (result.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error updating report status:', error);
+      alert('Error updating report status: ' + error.message);
     }
   }, []);
 
@@ -144,67 +149,72 @@ export default function Reports({ filter }) {
 
   if (loading && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <>
-      {/* Page Header */}
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 font-montserrat">
-          {filter ? `${filter.charAt(0).toUpperCase() + filter.slice(1).replace('_', ' ')} Reports` : 'All Reports'}
-        </h1>
-        <div className="flex space-x-2">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 py-10">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 space-y-10">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">
+              {filter ? `${filter.charAt(0).toUpperCase() + filter.slice(1).replace('_', ' ')} Reports` : 'All Reports'}
+            </h1>
+            <p className="text-sm text-gray-500">Manage and monitor hazard reports</p>
+          </div>
+          <div className="flex space-x-2">
             <button
               onClick={() => setView('table')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition duration-200 flex items-center gap-2 ${
-                view === 'table' ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+                view === 'table' ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+              } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
               Table View
             </button>
             <button
               onClick={() => setView('map')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition duration-200 flex items-center gap-2 ${
-                view === 'map' ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+                view === 'map' ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+              } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               Map View
             </button>
           </div>
-      </div>
+        </div>
 
-      <div className="mb-6">
-        {view === 'table' ? (
-          <ReportsTableResponsive
-            reports={filteredReports}
-            loading={loading}
-            onReportClick={handleReportClick}
-            onStatusUpdate={handleStatusUpdate}
-            isFiltered={!!filter} // Pass true if parent has filtered by status
-          />
-        ) : (
-          <ReportsMap
-            reports={filteredReports}
-            loading={loading}
-            onReportClick={handleReportClick}
-            filter={filter}
+        <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition border border-gray-100 p-6">
+          {view === 'table' ? (
+            <ReportsTableResponsive
+              reports={filteredReports}
+              loading={loading}
+              onReportClick={handleReportClick}
+              onStatusUpdate={handleStatusUpdate}
+              isFiltered={!!filter} // Pass true if parent has filtered by status
+            />
+          ) : (
+            <ReportsMap
+              reports={filteredReports}
+              loading={loading}
+              onReportClick={handleReportClick}
+              filter={filter}
+            />
+          )}
+        </div>
+
+        {/* Export Modal */}
+        {showExportModal && (
+          <ExportModal
+            isOpen={showExportModal}
+            onClose={handleExportClose}
           />
         )}
       </div>
-
-      {/* Export Modal */}
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={handleExportClose}
-        />
-      )}
-    </>
+    </div>
   );
 }

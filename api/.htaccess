@@ -1,0 +1,10 @@
+CGIPassAuth On
+
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# CORS headers
+Header set Access-Control-Allow-Origin "http://localhost:5173"
+Header set Access-Control-Allow-Credentials "true"
+Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"

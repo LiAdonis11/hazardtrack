@@ -102,47 +102,85 @@ $offset = ($page - 1) * $limit;
 
 // Build query - using is_active instead of status
 $query = "SELECT u.id, u.fullname, u.email, u.phone, u.is_active, u.created_at, COUNT(hr.id) as reports_count FROM users u LEFT JOIN hazard_reports hr ON u.id = hr.user_id";
-$where = [];
+$where_parts = [];
+$bind_types = "";
+$bind_values = [];
 
 if ($role !== 'all') {
-    $where[] = "u.role = '$role'";
+    $where_parts[] = "u.role = ?";
+    $bind_types .= "s";
+    $bind_values[] = $role;
 }
 
 if ($status !== 'all') {
     if ($status === 'active') {
-        $where[] = "u.is_active = 1";
+        $where_parts[] = "u.is_active = ?";
+        $bind_types .= "i";
+        $bind_values[] = 1;
     } elseif ($status === 'inactive') {
-        $where[] = "u.is_active = 0";
+        $where_parts[] = "u.is_active = ?";
+        $bind_types .= "i";
+        $bind_values[] = 0;
     }
 }
 
 if (!empty($search)) {
-    $where[] = "(u.fullname LIKE '%$search%' OR u.email LIKE '%$search%')";
+    if ($role === 'resident') {
+        $where_parts[] = "u.fullname LIKE ?";
+        $bind_types .= "s";
+        $bind_values[] = "%$search%";
+    } else {
+        $where_parts[] = "(u.fullname LIKE ? OR u.email LIKE ?)";
+        $bind_types .= "ss";
+        $bind_values[] = "%$search%";
+        $bind_values[] = "%$search%";
+    }
 }
 
-if (!empty($where)) {
-    $query .= " WHERE " . implode(' AND ', $where);
+if (!empty($where_parts)) {
+    $query .= " WHERE " . implode(' AND ', $where_parts);
 }
 
-$query .= " GROUP BY u.id ORDER BY u.created_at DESC LIMIT $limit OFFSET $offset";
+$query .= " GROUP BY u.id ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
+$bind_types .= "ii";
+$bind_values[] = $limit;
+$bind_values[] = $offset;
 
 // Get total count
 $countQuery = "SELECT COUNT(*) as total FROM users u";
-if (!empty($where)) {
-    $countQuery .= " WHERE " . implode(' AND ', $where);
+$count_bind_types = $bind_types;
+$count_bind_values = $bind_values;
+if (!empty($where_parts)) {
+    $countQuery .= " WHERE " . implode(' AND ', $where_parts);
+    // Remove the LIMIT and OFFSET bindings for count query
+    $count_bind_types = substr($bind_types, 0, -2);
+    $count_bind_values = array_slice($bind_values, 0, -2);
 }
 
 try {
     // Get total
-    $countResult = $conn->query($countQuery);
-    $total = $countResult->fetch_assoc()['total'];
+    if (!empty($count_bind_values)) {
+        $countStmt = $conn->prepare($countQuery);
+        $countStmt->bind_param($count_bind_types, ...$count_bind_values);
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $total = $countResult->fetch_assoc()['total'];
+        $countStmt->close();
+    } else {
+        $countResult = $conn->query($countQuery);
+        $total = $countResult->fetch_assoc()['total'];
+    }
 
     // Get users
-    $result = $conn->query($query);
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param($bind_types, ...$bind_values);
+    $stmt->execute();
+    $result = $stmt->get_result();
     $users = [];
     while ($row = $result->fetch_assoc()) {
         $users[] = $row;
     }
+    $stmt->close();
 
     echo json_encode(['status' => 'success', 'users' => $users, 'total' => $total]);
 } catch (Exception $e) {

@@ -146,12 +146,13 @@ try {
         AND hr.longitude BETWEEN ? AND ?
         AND hr.latitude IS NOT NULL
         AND hr.longitude IS NOT NULL
+        AND hr.status != 'deleted'
         ORDER BY distance_km ASC
         LIMIT 20
     ";
 
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("dddddd", $lat, $lng, $lat, $min_lat, $max_lat, $min_lng, $max_lng);
+    $stmt->bind_param("ddddddd", $lat, $lng, $lat, $min_lat, $max_lat, $min_lng, $max_lng);
     $stmt->execute();
     $result = $stmt->get_result();
 

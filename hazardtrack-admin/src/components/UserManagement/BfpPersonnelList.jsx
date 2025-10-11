@@ -15,7 +15,7 @@ export default function BfpPersonnelList() {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/get_users.php?role=bfp_personnel`, {
+      const response = await fetch(`${API_URL}/get_users.php?role=inspector`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -110,9 +110,9 @@ export default function BfpPersonnelList() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Phone
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Role
-                      </th>
+                      </th> */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
@@ -135,11 +135,11 @@ export default function BfpPersonnelList() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{person.phone || 'N/A'}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        {/* <td className="px-6 py-4 whitespace-nowrap">
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                             {person.role === 'bfp_personnel' ? 'BFP Personnel' : person.role}
                           </span>
-                        </td>
+                        </td> */}
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             person.is_active
@@ -175,7 +175,7 @@ export default function BfpPersonnelList() {
             )}
           </div>
         </div>
-      </div>
+      </div>  
     </div>
   );
 }

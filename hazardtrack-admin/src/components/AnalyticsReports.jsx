@@ -8,10 +8,10 @@ const AnalyticsReports = () => {
   const [activeTab, setActiveTab] = useState('statistics');
 
   const tabs = [
-    { id: 'statistics', label: 'Statistics', component: StatisticsDashboard },
-    { id: 'hotspot-map', label: 'Hotspot Map', component: HotspotMap },
-    { id: 'export-data', label: 'Export Data', component: ExportData },
-    { id: 'generate-reports', label: 'Generate Reports', component: GenerateReports }
+    { id: 'statistics', label: 'Statistics Dashboard', component: StatisticsDashboard, icon: '📊' },
+    // { id: 'hotspot-map', label: 'Hotspot Map', component: HotspotMap },
+    { id: 'export-data', label: 'Export Data', component: ExportData, icon: '📥' },
+    // { id: 'generate-reports', label: 'Generate Reports', component: GenerateReports }
   ];
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component;

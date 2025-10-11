@@ -131,10 +131,13 @@ try {
         'cancelled' => 'pending'
     ];
 
+    $reportStatusUpdated = false;
     if (isset($reportStatusMap[$newStatus])) {
+        $newReportStatus = $reportStatusMap[$newStatus];
         $stmt = $conn->prepare("UPDATE hazard_reports SET status = ? WHERE id = ?");
-        $stmt->bind_param("si", $reportStatusMap[$newStatus], $reportId);
+        $stmt->bind_param("si", $newReportStatus, $reportId);
         $stmt->execute();
+        $reportStatusUpdated = $stmt->affected_rows > 0;
     }
 
     // Log status change in history
@@ -145,6 +148,27 @@ try {
     $changeReason = $notes ?: "Status changed from $oldStatus to $newStatus";
     $stmt->bind_param("issis", $assignmentId, $oldStatus, $newStatus, $user['user_id'], $changeReason);
     $stmt->execute();
+
+    // Send notifications if report status was updated
+    if ($reportStatusUpdated) {
+        // Notify all BFP personnel (inspectors and admins) about status change
+        $bfp_notification_title = 'Report Status Updated';
+        $role_display = isset($user['role']) && $user['role'] === 'inspector' ? 'Inspector' : 'Admin';
+        $bfp_notification_body = "{$role_display} " . ($user['fullname'] ?? 'Unknown') . " updated assignment for report #{$reportId} status to '{$newReportStatus}'";
+        if (!empty($notes)) {
+            $bfp_notification_body .= ". Notes: {$notes}";
+        }
+
+        $stmt_bfp = $conn->prepare("
+            INSERT INTO notifications (user_id, title, body)
+            SELECT id, ?, ? FROM users WHERE role IN ('admin', 'inspector')
+        ");
+        if ($stmt_bfp) {
+            $stmt_bfp->bind_param("ss", $bfp_notification_title, $bfp_notification_body);
+            $stmt_bfp->execute();
+            $stmt_bfp->close();
+        }
+    }
 
     echo json_encode([
         'status' => 'success',

@@ -1,15 +1,9 @@
 <?php
 include 'api/jwt_helper.php';
 
-// Get user_id from command line argument or default to 4
-$user_id = isset($argv[1]) ? (int)$argv[1] : 4;
-
-// Set user details based on user_id
-if ($user_id === 7) {
-    $email = 'maria@example.com'; // Assuming user 7 is Maria
-} else {
-    $email = 'juan@example.com'; // Default to Juan for user 4
-}
+// Generate token for resident user (user_id: 59)
+$user_id = 59;
+$email = 'resident@gmail.com';
 $role = 'resident';
 
 $token = generateJWT($user_id, $email, $role);

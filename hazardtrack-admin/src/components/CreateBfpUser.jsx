@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 
@@ -12,7 +12,22 @@ export default function CreateBfpUser() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [passwordRules, setPasswordRules] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+  });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setPasswordRules({
+      length: password.length >= 6,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+    });
+  }, [password]);
 
   const validateForm = () => {
     if (!fullname || !email || !password || !confirmPassword) {
@@ -23,24 +38,8 @@ export default function CreateBfpUser() {
       setError('Passwords do not match.');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
-      return false;
-    }
-    if (!/[A-Z]/.test(password)) {
-      setError('Password must contain at least one uppercase letter.');
-      return false;
-    }
-    if (!/[a-z]/.test(password)) {
-      setError('Password must contain at least one lowercase letter.');
-      return false;
-    }
-    if (!/\d/.test(password)) {
-      setError('Password must contain at least one number.');
-      return false;
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      setError('Password must contain at least one special character.');
+    if (!passwordRules.length || !passwordRules.uppercase || !passwordRules.lowercase || !passwordRules.number) {
+      setError('Password does not meet requirements.');
       return false;
     }
     setError('');
@@ -81,9 +80,13 @@ export default function CreateBfpUser() {
         setSuccessMessage('BFP personnel account created successfully.');
         setError('');
         // Optionally redirect or clear form
+
         setTimeout(() => {
-          navigate('/users');
+
+          navigate('/user-management');
+
         }, 2000);
+
       } else {
         setError(result.message || 'Failed to create account.');
         setSuccessMessage('');
@@ -136,6 +139,43 @@ export default function CreateBfpUser() {
                 className="w-full border border-gray-300 rounded px-3 py-2"
                 required
               />
+            </div>
+            <div className="mb-3">
+              <div className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</div>
+              <div className="space-y-1">
+                <div className="flex items-center">
+                  <span className={`mr-2 ${passwordRules.length ? 'text-green-600' : 'text-red-600'}`}>
+                    {passwordRules.length ? '✓' : '✗'}
+                  </span>
+                  <span className={`text-sm ${passwordRules.length ? 'text-green-600' : 'text-red-600'}`}>
+                    At least 6 characters
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className={`mr-2 ${passwordRules.uppercase ? 'text-green-600' : 'text-red-600'}`}>
+                    {passwordRules.uppercase ? '✓' : '✗'}
+                  </span>
+                  <span className={`text-sm ${passwordRules.uppercase ? 'text-green-600' : 'text-red-600'}`}>
+                    At least one uppercase letter
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className={`mr-2 ${passwordRules.lowercase ? 'text-green-600' : 'text-red-600'}`}>
+                    {passwordRules.lowercase ? '✓' : '✗'}
+                  </span>
+                  <span className={`text-sm ${passwordRules.lowercase ? 'text-green-600' : 'text-red-600'}`}>
+                    At least one lowercase letter
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className={`mr-2 ${passwordRules.number ? 'text-green-600' : 'text-red-600'}`}>
+                    {passwordRules.number ? '✓' : '✗'}
+                  </span>
+                  <span className={`text-sm ${passwordRules.number ? 'text-green-600' : 'text-red-600'}`}>
+                    At least one number
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="mb-3">
               <label className="block mb-1 font-medium" htmlFor="confirmPassword">Confirm Password *</label>

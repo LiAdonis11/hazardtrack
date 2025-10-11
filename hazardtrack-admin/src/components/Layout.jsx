@@ -43,7 +43,7 @@ const Layout = () => {
 
   return (
     <div
-      className="min-h-screen bg-surface transition-all duration-300"
+      className="min-h-screen bg-neutral-50 transition-all duration-300"
       style={{
         display: 'grid',
         gridTemplateColumns: isMobile

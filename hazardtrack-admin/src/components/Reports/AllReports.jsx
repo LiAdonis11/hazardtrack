@@ -38,7 +38,7 @@ export default function AllReports() {
         const data = await response.json();
         if (data.status === 'success') {
           setReports(data.reports || []);
-          setTotalPages(Math.ceil((data.reports || []).length / reportsPerPage));
+          setTotalPages(data.total_pages || 1);
         }
       }
     } catch (error) {
@@ -52,6 +52,8 @@ export default function AllReports() {
     fetchReports();
   }, [fetchReports]);
 
+
+
   const filteredReports = useMemo(() => {
     return reports.filter(report =>
       report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,8 +66,10 @@ export default function AllReports() {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'verified': return 'bg-teal-100 text-teal-800';
+      case 'resolved': return 'bg-purple-100 text-purple-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -82,10 +86,10 @@ export default function AllReports() {
 
   return (
     <div className="all-reports-container">
-      <div className="mb-8">
+      {/* <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">All Hazard Reports</h1>
         <p className="text-gray-600">Manage and monitor all hazard reports in the system</p>
-      </div>
+      </div> */}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -140,10 +144,49 @@ export default function AllReports() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Barangays</option>
-              <option value="tagudin_center">Tagudin Center</option>
-              <option value="biag">Biag</option>
-              <option value="balingaoan">Balingaoan</option>
-              {/* Add more barangays as needed */}
+              <option value="Ag-aguman">Ag-aguman</option>
+              <option value="Ambalayat">Ambalayat</option>
+              <option value="Baracbac">Baracbac</option>
+              <option value="Bario-an">Bario-an</option>
+              <option value="Baritao">Baritao</option>
+              <option value="Becques">Becques</option>
+              <option value="Bimmanga">Bimmanga</option>
+              <option value="Bio">Bio</option>
+              <option value="Bitalag">Bitalag</option>
+              <option value="Borono">Borono</option>
+              <option value="Bucao East">Bucao East</option>
+              <option value="Bucao West">Bucao West</option>
+              <option value="Cabaroan">Cabaroan</option>
+              <option value="Cabugbugan">Cabugbugan</option>
+              <option value="Cabulanglangan">Cabulanglangan</option>
+              <option value="Dacutan">Dacutan</option>
+              <option value="Dardarat">Dardarat</option>
+              <option value="Del Pilar">Del Pilar</option>
+              <option value="Farola">Farola</option>
+              <option value="Gabur">Gabur</option>
+              <option value="Garitan">Garitan</option>
+              <option value="Jardin">Jardin</option>
+              <option value="Lacong">Lacong</option>
+              <option value="Lantag">Lantag</option>
+              <option value="Las-ud">Las-ud</option>
+              <option value="Libtong">Libtong</option>
+              <option value="Lubnac">Lubnac</option>
+              <option value="Magsaysay">Magsaysay</option>
+              <option value="Malacañang">Malacañang</option>
+              <option value="Pacac">Pacac</option>
+              <option value="Pallogan">Pallogan</option>
+              <option value="Pudoc East">Pudoc East</option>
+              <option value="Pudoc West">Pudoc West</option>
+              <option value="Pula">Pula</option>
+              <option value="Quirino">Quirino</option>
+              <option value="Ranget">Ranget</option>
+              <option value="Rizal">Rizal</option>
+              <option value="Salvacion">Salvacion</option>
+              <option value="San Miguel">San Miguel</option>
+              <option value="Sawat">Sawat</option>
+              <option value="Tallaoen">Tallaoen</option>
+              <option value="Tampugo">Tampugo</option>
+              <option value="Tarangotong">Tarangotong</option>
             </select>
           </div>
 
@@ -178,9 +221,6 @@ export default function AllReports() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Report #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Title
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -203,40 +243,39 @@ export default function AllReports() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredReports.map((report) => (
                     <tr key={report.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {report.report_number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap align-middle">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
                           {report.title}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap align-middle">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(report.status)}`}>
                           {report.status.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap align-middle">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(report.priority)}`}>
                           {report.priority}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {report.barangay}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-middle">
+                        {report.location_address}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-middle">
                         {new Date(report.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium align-middle">
                         <Link
                           to={`/reports/${report.id}`}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
+                          className="inline-flex items-center pl-0 pr-2 py-1 text-sm text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-md transition-colors"
+                          title="View Details"
                         >
-                          View
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          View Details
                         </Link>
-                        <button className="text-green-600 hover:text-green-900">
-                          Edit
-                        </button>
                       </td>
                     </tr>
                   ))}

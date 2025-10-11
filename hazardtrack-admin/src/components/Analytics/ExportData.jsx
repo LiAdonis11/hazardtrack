@@ -26,7 +26,7 @@ const ExportData = () => {
         ...filters
       });
 
-      const response = await fetch(`${API_URL}/export_data.php?${params}`, {
+      const response = await fetch(`${API_URL}/export_data_enhanced.php?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -37,7 +37,7 @@ const ExportData = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `hazardtrack_export_${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format === 'csv' ? 'csv' : 'pdf'}`;
+        a.download = `hazardtrack_export_enhanced${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : format === 'csv' ? 'csv' : 'pdf'}`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

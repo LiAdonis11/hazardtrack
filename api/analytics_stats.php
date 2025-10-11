@@ -63,6 +63,9 @@ if ($payload['role'] !== 'admin' && $payload['role'] !== 'inspector') {
 // Get time range parameter
 $range = isset($_GET['range']) ? $_GET['range'] : '30d';
 
+// Get months parameter for trends
+$months = isset($_GET['months']) ? (int)$_GET['months'] : 12;
+
 // Calculate date range
 $now = new DateTime();
 switch ($range) {
@@ -115,6 +118,15 @@ try {
     $avgTime = $result->fetch_assoc()['avg_time'];
     $data['avgResponseTime'] = $avgTime !== null ? round($avgTime, 1) : 0;
 
+    // Average resolution time (in hours)
+    // This calculates the time from creation to resolution for resolved reports
+    $query = "SELECT AVG(TIMESTAMPDIFF(HOUR, created_at, updated_at)) as avg_time
+              FROM hazard_reports
+              WHERE status = 'resolved' AND created_at >= '$startDate'";
+    $result = $conn->query($query);
+    $avgResolutionTime = $result->fetch_assoc()['avg_time'];
+    $data['avgResolutionTime'] = $avgResolutionTime !== null ? round($avgResolutionTime, 1) : 0;
+
     // Reports by location (using location_address as barangay)
     $query = "SELECT location_address as barangay, COUNT(*) as count FROM hazard_reports WHERE created_at >= '$startDate' AND location_address IS NOT NULL AND location_address != '' GROUP BY location_address ORDER BY count DESC LIMIT 10";
     $result = $conn->query($query);
@@ -155,17 +167,23 @@ try {
         $data['responseTimeAnalytics'][] = ['label' => $row['time_range'], 'value' => (int)$row['count']];
     }
 
-    // Monthly trends (last 12 months)
-    $query = "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count
-        FROM hazard_reports
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-        GROUP BY month
-        ORDER BY month";
-    $result = $conn->query($query);
-    $data['monthlyTrends'] = [];
-    while ($row = $result->fetch_assoc()) {
-        $data['monthlyTrends'][] = ['label' => $row['month'], 'value' => (int)$row['count']];
+    // Monthly trends (last N months) - generate all months with 0 if no data
+    $monthlyTrends = [];
+    $currentDate = new DateTime();
+    for ($i = $months - 1; $i >= 0; $i--) {
+        $date = clone $currentDate;
+        $date->modify("-{$i} months");
+        $monthName = $date->format('F Y'); // Full month name and year
+        $startOfMonth = $date->format('Y-m-01 00:00:00');
+        $endOfMonth = $date->format('Y-m-t 23:59:59');
+
+        $query = "SELECT COUNT(*) as count FROM hazard_reports WHERE created_at >= '$startOfMonth' AND created_at <= '$endOfMonth'";
+        $result = $conn->query($query);
+        $count = $result->fetch_assoc()['count'];
+
+        $monthlyTrends[] = ['label' => $monthName, 'value' => (int)$count];
     }
+    $data['monthlyTrends'] = $monthlyTrends;
 
     // Priority counts
     $query = "SELECT priority, COUNT(*) as count FROM hazard_reports WHERE created_at >= '$startDate' GROUP BY priority";
@@ -191,8 +209,18 @@ try {
     $data['resolvedCount'] = $statuses['resolved'] ?? 0;
     $data['rejectedCount'] = $statuses['rejected'] ?? 0;
 
+    // Active users
+    $query = "SELECT COUNT(*) as total FROM users WHERE is_active = 1";
+    $result = $conn->query($query);
+    $data['activeUsers'] = $result->fetch_assoc()['total'];
+
+    // New users in the selected period
+    $query = "SELECT COUNT(*) as total FROM users WHERE created_at >= '$startDate'";
+    $result = $conn->query($query);
+    $data['newUsers'] = $result->fetch_assoc()['total'];
+
     // Additional metrics
-    $data['avgResolutionTime'] = $data['avgResponseTime'];
+    // $data['avgResolutionTime'] is already set above
     $data['successRate'] = $data['resolutionRate'];
     $data['userSatisfaction'] = 85; // Placeholder
 

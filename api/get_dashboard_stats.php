@@ -105,12 +105,13 @@ try {
     $bfpPersonnelResult = $conn->query($bfpPersonnelQuery);
     $bfpPersonnelCount = $bfpPersonnelResult->fetch_assoc()['total'];
 
-    // Calculate average response time (time from report creation to first assignment)
+    // Calculate average response time (time from report creation to first 'in_progress' status)
     $avgResponseTimeQuery = "
-        SELECT AVG(TIMESTAMPDIFF(HOUR, hr.created_at, a.assigned_at)) as avg_response_time
+        SELECT AVG(TIMESTAMPDIFF(HOUR, hr.created_at, sh.created_at)) as avg_response_time
         FROM hazard_reports hr
-        LEFT JOIN assignments a ON hr.id = a.report_id
-        WHERE a.assigned_at IS NOT NULL
+        JOIN status_history sh ON hr.id = sh.report_id
+        WHERE sh.new_status = 'in_progress'
+        AND sh.id = (SELECT MIN(id) FROM status_history WHERE report_id = hr.id AND new_status = 'in_progress')
     ";
     $avgResponseTimeResult = $conn->query($avgResponseTimeQuery);
     $avgResponseTime = $avgResponseTimeResult->fetch_assoc()['avg_response_time'];
@@ -126,17 +127,24 @@ try {
     // Get reports by priority for map pins
     $reportsByPriorityQuery = "
         SELECT
-            id,
-            title,
-            latitude,
-            longitude,
-            priority,
-            status,
-            severity,
-            created_at
-        FROM hazard_reports
-        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-        ORDER BY created_at DESC
+            hr.id,
+            hr.title,
+            hr.latitude,
+            hr.longitude,
+            hr.priority,
+            hr.status,
+            hr.severity,
+            hr.created_at,
+            hr.location_address,
+            hr.category_id as category,
+            u.fullname as reporter_name,
+            hr.phone as contact_number,
+            hr.description,
+            hr.image_path
+        FROM hazard_reports hr
+        LEFT JOIN users u ON hr.user_id = u.id
+        WHERE hr.latitude IS NOT NULL AND hr.longitude IS NOT NULL
+        ORDER BY hr.created_at DESC
     ";
     $reportsByPriorityResult = $conn->query($reportsByPriorityQuery);
     $reportsByPriority = [];

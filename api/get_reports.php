@@ -1,6 +1,6 @@
 <?php
 include 'db.php';
-include 'jwt_helper.php';
+include 'jwt_helper_extended.php';
 
 // List of allowed origins
 $allowed_origins = [
@@ -118,32 +118,39 @@ try {
             hr.location_address,
             hr.latitude,
             hr.longitude,
-            hr.status,
+            COALESCE(hr.status, 'pending') as status,
             hr.priority,
             hr.created_at,
             hr.updated_at,
             hr.admin_notes,
-            ra.file_path as image,
+            hr.image_path as image,
             c.name as category_name,
             c.color as category_color,
             iu.fullname as inspector_name,
             a.notes as notes
         FROM hazard_reports hr
         LEFT JOIN categories c ON hr.category_id = c.id
-        LEFT JOIN report_attachments ra ON hr.id = ra.report_id AND ra.is_primary = 1
         LEFT JOIN assignments a ON hr.id = a.report_id
         LEFT JOIN users iu ON a.assigned_to = iu.id
-        WHERE hr.user_id = ?
+        WHERE hr.user_id = ? AND hr.status != 'deleted'
         ORDER BY hr.created_at DESC
     ");
-    
+
     $stmt->bind_param("i", $payload['user_id']);
     $stmt->execute();
     $result = $stmt->get_result();
-    
+
     $reports = [];
     while ($row = $result->fetch_assoc()) {
         $reports[] = $row;
+    }
+
+    // Add base URL for image_path
+    $baseUrl = "http://192.168.254.183/hazardTrackV2"; // same as API_URL.replace('/api', '')
+    foreach ($reports as &$r) {
+      if (!empty($r['image']) && !str_starts_with($r['image'], 'http')) {
+        $r['image'] = $baseUrl . '/' . $r['image'];
+      }
     }
 
     echo json_encode(['status' => 'success', 'reports' => $reports]);

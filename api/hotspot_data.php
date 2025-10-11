@@ -75,7 +75,8 @@ try {
         AVG(longitude) as avg_lng
         FROM hazard_reports
         WHERE location_address IS NOT NULL AND location_address != ''
-        AND latitude IS NOT NULL AND longitude IS NOT NULL";
+        AND latitude IS NOT NULL AND longitude IS NOT NULL
+        AND status != 'deleted'";
 
     if ($type !== 'all') {
         // Join with categories to filter by type
@@ -88,7 +89,8 @@ try {
             FROM hazard_reports hr
             LEFT JOIN categories c ON hr.category_id = c.id
             WHERE hr.location_address IS NOT NULL AND hr.location_address != ''
-            AND hr.latitude IS NOT NULL AND hr.longitude IS NOT NULL";
+            AND hr.latitude IS NOT NULL AND hr.longitude IS NOT NULL
+            AND hr.status != 'deleted'";
         $query .= " AND LOWER(c.name) = LOWER('$type')";
     }
 

@@ -121,6 +121,25 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle report details updates
+  socket.on('report_details_updated', async (data) => {
+    try {
+      const { reportId, updatedFields, updatedBy } = data;
+      console.log(`📝 Report details updated: Report ${reportId}, fields: ${updatedFields.join(', ')}`);
+
+      // Broadcast report details change to all connected clients
+      io.emit('report_details_changed', {
+        reportId,
+        updatedFields,
+        updatedBy,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Error handling report details update:', error);
+    }
+  });
+
   // Handle emergency alerts
   socket.on('emergency_alert', (data) => {
     console.log('🚨 Emergency alert received:', data);

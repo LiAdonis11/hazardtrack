@@ -1,4 +1,16 @@
 <?php
+// 1. Specify the allowed origin (your frontend app)
+header("Access-Control-Allow-Origin: http://localhost:5173");
+
+// 2. Specify the allowed HTTP methods
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+
+// 3. Specify the allowed headers
+header("Access-Control-Allow-Headers: Content-Type");
+
+// 4. Allow credentials
+header("Access-Control-Allow-Credentials: true");
+
 include 'cors_fix.php'; // Add this line to include CORS fix
 include 'jwt_helper_extended.php';
 include 'db.php';
@@ -94,7 +106,7 @@ if (!empty($errors)) {
 }
 
 // Real DB login for admins and bfp_personnel
-$sql = "SELECT id, fullname, email, password, role, phone, address FROM users WHERE email = ? AND role IN ('admin', 'bfp_personnel') AND is_active = 1 LIMIT 1";
+$sql = "SELECT id, fullname, email, password, role, phone, address FROM users WHERE email = ? AND role IN ('admin', 'bfp_personnel', 'inspector') AND is_active = 1 LIMIT 1";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $email);
 $stmt->execute();
@@ -102,20 +114,33 @@ $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
 if (!$user) {
+    error_log("User not found for email: " . $email);
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Invalid email or password']);
+    echo json_encode(['status' => 'error', 'message' => 'User not found']);
     exit();
 }
 
 // Verify password
-if (!password_verify($password, $user['password'])) {
+$passwordValid = false;
+if (strpos($user['password'], '$2y$') === 0) {
+    // Password is hashed
+    $passwordValid = password_verify($password, $user['password']);
+    error_log("Hashed password check for " . $email . ": " . ($passwordValid ? 'valid' : 'invalid'));
+} else {
+    // Password is plain text (for development)
+    $passwordValid = ($password === $user['password']);
+    error_log("Plain text password check for " . $email . ": " . ($passwordValid ? 'valid' : 'invalid'));
+}
+
+if (!$passwordValid) {
+    error_log("Password invalid for user: " . $email);
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Invalid email or password']);
+    echo json_encode(['status' => 'error', 'message' => 'Password incorrect']);
     exit();
 }
 
 // Generate JWT token
-$token = generateJWT($user['id'], $user['email'], $user['role']);
+$token = generateJWT($user['id'], $user['email'], $user['role'], $user['fullname']);
 error_log("Generated token: " . $token); // Log the token for debugging
 
 // Prepare response

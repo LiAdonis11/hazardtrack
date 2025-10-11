@@ -88,28 +88,28 @@ const Sidebar = ({ isCollapsed, onToggle, isMobile }) => {
   }, [location.pathname]);
 
   return (
-    <div className={`min-h-screen flex flex-col ${isMobile ? 'w-64' : isCollapsed ? 'w-16' : 'w-64'} bg-surface-elevated border-r border-border text-primary relative overflow-hidden transition-all duration-300`}>
+    <div className={`min-h-screen flex flex-col ${isMobile ? 'w-64' : isCollapsed ? 'w-16' : 'w-64'} bg-secondary border-r border-gray-700 text-white relative overflow-hidden transition-all duration-300`}>
       {/* Subtle background pattern */}
       <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-primary-400 rounded-full filter blur-xl"></div>
-        <div className="absolute bottom-1/3 right-1/3 w-24 h-24 bg-secondary-400 rounded-full filter blur-xl"></div>
-        <div className="absolute top-2/3 left-1/3 w-28 h-28 bg-accent-400 rounded-full filter blur-xl"></div>
+        <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-primary rounded-full filter blur-xl"></div>
+        <div className="absolute bottom-1/3 right-1/3 w-24 h-24 bg-gray-600 rounded-full filter blur-xl"></div>
+        <div className="absolute top-2/3 left-1/3 w-28 h-28 bg-accent rounded-full filter blur-xl"></div>
       </div>
 
       <div className="relative z-10 p-6">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
           {!isCollapsed && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-lg">
+              <div className="flex items-center justify-center w-8 h-8 bg-accent rounded-lg">
                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
                 </svg>
               </div>
-              <span className="font-bold text-lg text-gray-800">HazardTrack</span>
+              <span className="font-bold text-lg text-white">HazardTrack</span>
             </div>
           )}
           {isCollapsed && (
-            <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-lg">
+            <div className="flex items-center justify-center w-8 h-8 bg-accent rounded-lg">
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
               </svg>
@@ -122,15 +122,15 @@ const Sidebar = ({ isCollapsed, onToggle, isMobile }) => {
         {menuItems.map((item) => (
           <div key={item.id} className="mb-2">
             <div
-              className={`group flex items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${
+              className={`group flex items-center px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 ${
                 isActive(item.path)
-                  ? 'bg-orange-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               onClick={() => handleNavigation(item.path)}
               title={isCollapsed ? item.label : ''}
             >
-              <div className={`w-5 h-5 ${isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-orange-600'}`}>
+              <div className={`w-5 h-5 ${isActive(item.path) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
                 {item.icon}
               </div>
               <span className={`ml-3 font-medium flex-1 ${isCollapsed ? 'hidden' : ''}`}>
@@ -141,10 +141,10 @@ const Sidebar = ({ isCollapsed, onToggle, isMobile }) => {
         ))}
       </nav>
 
-      <div className="relative z-10 p-4 border-t border-border">
+      <div className="relative z-10 p-4 border-t border-gray-700">
         <button
           onClick={onToggle}
-          className="w-full flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-all duration-200"
+          className="w-full flex items-center justify-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-2xl transition-all duration-200"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -72,7 +72,7 @@ try {
         $notifications[] = $row;
     }
 
-    echo json_encode(['status' => 'success', 'notifications' => $notifications]);
+    echo json_encode(['status' => 'success', 'notifications' => $notifications, 'user_id' => $user_id]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => 'Failed to fetch notifications: ' . $e->getMessage()]);

@@ -1,30 +1,15 @@
 <?php
-// Simple test script to verify login functionality
-$url = 'http://localhost/hazardTrackV2/api/login_resident.php';
-$data = array('email' => 'juan@example.com', 'password' => 'password');
+include 'api/db.php';
 
-$options = array(
-    'http' => array(
-        'header'  => "Content-type: application/json\r\n",
-        'method'  => 'POST',
-        'content' => json_encode($data),
-    ),
-);
+// Get admin user
+$sql = "SELECT email, password FROM users WHERE role = 'admin' LIMIT 1";
+$result = $conn->query($sql);
+$user = $result->fetch_assoc();
 
-$context  = stream_context_create($options);
-$result = file_get_contents($url, false, $context);
-
-if ($result === FALSE) {
-    echo "Error: Failed to connect to login endpoint\n";
+if ($user) {
+    echo 'Admin email: ' . $user['email'] . PHP_EOL;
+    echo 'Password: ' . $user['password'] . PHP_EOL;
 } else {
-    echo "Login Response:\n";
-    echo $result . "\n";
-    
-    $response = json_decode($result, true);
-    if ($response && isset($response['status']) && $response['status'] === 'success') {
-        echo "✅ Login successful! Token: " . substr($response['token'], 0, 50) . "...\n";
-    } else {
-        echo "❌ Login failed: " . ($response['message'] ?? 'Unknown error') . "\n";
-    }
+    echo 'No admin user found' . PHP_EOL;
 }
 ?>

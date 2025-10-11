@@ -96,7 +96,7 @@ if (!password_verify($password, $user['password'])) {
 }
 
 // Generate JWT token
-$token = generateJWT($user['id'], $user['email'], $user['role']);
+$token = generateJWT($user['id'], $user['email'], $user['role'], $user['fullname']);
 
 // ✅ Response with detected role
 $response = [

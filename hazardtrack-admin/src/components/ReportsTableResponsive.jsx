@@ -163,7 +163,7 @@ const ReportsTable = ({
         <table className="table">
           <thead>
             <tr>
-              {['Title', 'Category', 'Reporter', 'Status', 'Priority', 'Actions', 'Date'].map((header) => (
+              {['Title', 'Category', 'Reporter', 'Status', 'Priority', 'Photo', 'Actions', 'Date'].map((header) => (
                 <th key={header}>
                   <div className="skeleton skeleton-text" style={{ width: '80px', height: '16px' }}></div>
                 </th>
@@ -173,7 +173,7 @@ const ReportsTable = ({
           <tbody>
             {[1, 2, 3, 4, 5].map((row) => (
               <tr key={row}>
-                {[1, 2, 3, 4, 5, 6, 7].map((cell) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((cell) => (
                   <td key={cell}>
                     <div className="skeleton skeleton-text" style={{ width: '60px', height: '16px' }}></div>
                   </td>
@@ -317,6 +317,10 @@ const ReportsTable = ({
                 </div>
               </th>
 
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
+                Photo
+              </th>
+
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                 Actions
               </th>
@@ -334,7 +338,7 @@ const ReportsTable = ({
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAndSortedReports.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-12 text-center">
+                <td colSpan="8" className="px-6 py-12 text-center">
                   <div className="flex flex-col items-center">
                     <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -414,6 +418,22 @@ const ReportsTable = ({
                     }`}>
                       {report.priority ? report.priority.charAt(0).toUpperCase() + report.priority.slice(1) : 'N/A'}
                     </span>
+                  </td>
+
+                  <td className="px-4 py-4 whitespace-nowrap min-w-[80px]">
+                    {report.image_path ? (
+                      <img
+                        src={report.image_path}
+                        alt="Report Photo"
+                        className="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium min-w-[180px]">
