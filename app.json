@@ -1,12 +1,11 @@
 {
   "expo": {
     "name": "hazardtrack-mobile",
-    "slug": "hazardtrack-mobile",
+    "slug": "hazardtrack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -20,11 +19,23 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "edgeToEdgeEnabled": false,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.liadonis11.hazardtrack"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c53f8262-7193-4709-8cd6-1aed96b75c80"
+      }
+    },
+    "owner": "liadonis11",
+    "scheme": "hazardtrack-mobile"
   }
 }
