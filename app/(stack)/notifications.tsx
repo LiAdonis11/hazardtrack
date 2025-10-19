@@ -1,54 +1,18 @@
 // app/(resident)/NotificationsScreen.tsx
-import React, { useState, useEffect } from "react"
-import { ActivityIndicator, StyleSheet, Dimensions, TouchableOpacity, ScrollView, Alert } from "react-native"
+import React from "react"
+import { ActivityIndicator, StyleSheet, Dimensions, TouchableOpacity, ScrollView, RefreshControl } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { YStack, XStack, Text, View, Card } from "tamagui"
 import FontAwesome from "@expo/vector-icons/FontAwesome"
 import { useRouter } from "expo-router"
-import { apiGetNotifications, apiMarkNotificationRead } from "../../lib/api"
-import { useAuth } from '../../context/AuthContext'
+import { useNotifications } from "../../context/NotificationsContext"
 
 const { width } = Dimensions.get("window")
 const HEADER_RED = "#D62828"
 
 export default function NotificationsScreen() {
   const router = useRouter()
-  const { token } = useAuth()
-  const [notifications, setNotifications] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (token) {
-        const res = await apiGetNotifications(token)
-        if (res?.status === "success") {
-          setNotifications(res.notifications)
-        }
-      }
-      setLoading(false)
-    }
-    if (token) {
-      fetchNotifications()
-    }
-  }, [token])
-
-  const markAsRead = async (notificationId: number) => {
-    if (!token) return
-    try {
-      const res = await apiMarkNotificationRead(token, notificationId)
-      if (res?.status === "success") {
-        // Update local state to mark as read
-        setNotifications(prev =>
-          prev.map(n => n.id === notificationId ? { ...n, is_read: 1 } : n)
-        )
-      } else {
-        Alert.alert("Error", "Failed to mark notification as read")
-      }
-    } catch (error) {
-      console.error("Error marking notification as read:", error)
-      Alert.alert("Error", "Failed to mark notification as read")
-    }
-  }
+  const { notifications, loading, refreshing, onRefresh, markAsRead } = useNotifications()
 
   if (loading) {
     return (
@@ -73,14 +37,21 @@ export default function NotificationsScreen() {
               </Text>
             </XStack>
 
-            <FontAwesome name="bell" size={22} color="#fff" />
+            <TouchableOpacity onPress={onRefresh}>
+              <FontAwesome name="refresh" size={22} color="#fff" />
+            </TouchableOpacity>
           </XStack>
         </SafeAreaView>
       </View>
 
       {/* Content */}
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 18 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 18 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
           <YStack gap={12}>
           {notifications.length === 0 ? (
             <YStack alignItems="center" justifyContent="center" flex={1} paddingVertical={80}>
@@ -96,7 +67,14 @@ export default function NotificationsScreen() {
             notifications.map((item, i) => (
               <TouchableOpacity
                 key={i}
-                onPress={() => markAsRead(item.id)}
+                onPress={() => {
+                  // Check if notification has report_id and navigate to report details
+                  if (item.report_id) {
+                    router.push(`/(stack)/ReportDetails?id=${item.report_id}`);
+                  } else {
+                    markAsRead(item.id);
+                  }
+                }}
                 activeOpacity={0.7}
               >
                 <Card

@@ -14,7 +14,7 @@ export const NETWORK_CONFIG = {
   ANDROID_EMULATOR_URL: 'http://192.168.254.183/api',
   
   // Production (update when deploying)
-  PROD_BASE_URL: 'https://your-production-domain.com/api',
+  PROD_BASE_URL: 'https://dailyph.com/api',
 };
 
 // Current active URL - Change this based on your testing environment

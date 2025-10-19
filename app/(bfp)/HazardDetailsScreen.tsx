@@ -1,7 +1,6 @@
 // HazardDetailsScreen.tsx — Part 1/2
 import React, { useEffect, useState, useCallback } from 'react';
-import { ScrollView, Image, Alert } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { ScrollView, Image, Alert, TouchableOpacity, Linking, View as RNView } from 'react-native';
 import { YStack, XStack, View, Separator } from 'tamagui';
 import { MotiView } from 'moti';
 import { Text } from './ui/text';
@@ -11,7 +10,7 @@ import { Badge, BadgeText } from './ui/badge';
 import { Textarea } from './ui/textarea';
 import {
   ArrowLeft, MapPin, Clock, User, Camera, Phone,
-  MessageSquare, XCircle, AlertTriangle,
+  MessageSquare, XCircle, AlertTriangle, Navigation,
 } from '@tamagui/lucide-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
@@ -30,15 +29,15 @@ const COLORS = {
   mutedText: '#6B7280',
   heading: '#111827',
   border: '#E5E7EB',
+  subtlePrimary: '#FEEDEE',
 };
 
 const STATUS_META: Record<string, { bg: string; text: string }> = {
-  Pending: { bg: "#FFF8E1", text: "#F57C00" },
-  "In-Progress": { bg: "#FFE0B2", text: "#E65100" },
-  Resolved: { bg: "#E8F5E9", text: "#2E7D32" },
-  Rejected: { bg: "#FFEBEE", text: "#D32F2F" },
-  Closed: { bg: "#F3E5F5", text: "#7B1FA2" },
-};
+  Pending: { bg: "#9CA3AF", text: "#FFFFFF" },
+  "In-Progress": { bg: "#F59E0B", text: "#FFFFFF" },
+  Resolved: { bg: "#16A34A", text: "#FFFFFF" },
+  Closed: { bg: "#B91C1C", text: "#FFFFFF" },
+}
 
 const getNormalizedStatus = (status?: string | null) => {
   if (!status) return "Pending"
@@ -46,12 +45,11 @@ const getNormalizedStatus = (status?: string | null) => {
   if (s === "pending" || s === "new" || s === "submitted") return "Pending"
   if (s === "in_progress" || s === "in-progress") return "In-Progress"
   if (s === "resolved") return "Resolved"
-  if (s === "rejected") return "Rejected"
+  if (s === "verified_valid" || s === "valid" || s === "verified") return "Verified"
+  if (s === "verified_false" || s === "invalid") return "Invalid"
   if (s === "closed") return "Closed"
-  if (s === "verified_valid" || s === "valid" || s === "verified") return "Resolved"
-  if (s === "verified_false" || s === "invalid") return "Rejected"
   return "Pending"
-};
+}
 
 const getPriorityColor = (priority: string) => {
   switch (priority?.toLowerCase()) {
@@ -68,20 +66,18 @@ const getPriorityColor = (priority: string) => {
 };
 
 const getRelativeTime = (dateStr?: string) => {
-  if (!dateStr) return '';
-  const now = new Date();
-  const date = new Date(dateStr);
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin === 1) return '1 min ago';
-  if (diffMin < 60) return `${diffMin} mins ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH === 1) return '1 hour ago';
-  if (diffH < 24) return `${diffH} hours ago`;
-  const diffD = Math.floor(diffH / 24);
-  return `${diffD} day${diffD > 1 ? 's' : ''} ago`;
-};
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return 'Unknown time'
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+}
 
 export default function HazardDetailsScreen() {
   const router = useRouter();
@@ -93,7 +89,6 @@ export default function HazardDetailsScreen() {
   const [notes, setNotes] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('');
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -117,14 +112,6 @@ export default function HazardDetailsScreen() {
             setSelectedStatus(found.status || '');
             setSelectedPriority(found.priority || '');
             setNotes(found.admin_notes || '');
-            if (found.latitude && found.longitude) {
-              setMapRegion({
-                latitude: Number(found.latitude),
-                longitude: Number(found.longitude),
-                latitudeDelta: 0.0045,
-                longitudeDelta: 0.0045,
-              });
-            }
           }
         }
       } catch (err) {
@@ -146,7 +133,7 @@ export default function HazardDetailsScreen() {
       'In Progress': 'in_progress',
       Resolved: 'resolved',
       Verified: 'verified',
-      Rejected: 'rejected',
+
       Closed: 'closed',
       Pending: 'pending',
     };
@@ -277,33 +264,61 @@ export default function HazardDetailsScreen() {
         <YStack padding="$4" gap="$4" paddingBottom={140}>
 
           {/* Overview Card */}
+
+          {/* Overview Card */}
           <Card
             backgroundColor={COLORS.card}
             borderRadius={16}
             padding={14}
+            borderWidth={1}
+            borderColor="#FFFFFF"
             style={{
-              shadowColor: '#000',
-              shadowOpacity: 0.06,
-              shadowOffset: { width: 0, height: 6 },
-              shadowRadius: 12,
+              shadowColor: 'rgba(0,0,0,0.1)',
+              shadowOpacity: 0.08,
+              shadowRadius: 4,
               elevation: 4,
-              borderWidth: 1,
-              borderColor: '#F1F1F1',
             }}
           >
             <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
-              <Text fontSize={18} fontWeight="700" color={COLORS.heading}>{report.hazard_type || 'Hazard'}</Text>
-              <Badge backgroundColor={statusColor.bg} borderRadius="$2" paddingHorizontal="$2" paddingVertical="$1">
+              <Text fontSize={18} fontWeight="700" color={COLORS.heading} flex={1} marginRight={8}>{report.title || report.hazard_type || 'Hazard'}</Text>
+              <Badge backgroundColor={statusColor.bg} borderRadius="$2" paddingHorizontal="$1" paddingVertical="$1">
                 <BadgeText color={statusColor.text} fontSize={12} fontWeight="600">
                   {normalizedStatus}
                 </BadgeText>
               </Badge>
             </XStack>
 
+
+
             <XStack alignItems="center" gap="$2" marginBottom={6}>
               <MapPin size={14} color="#6B7280" />
               <Text fontSize={12} color={COLORS.mutedText}>{report.location_address || report.location}</Text>
+              {report.latitude && report.longitude && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    // Simple navigation using external maps
+                    const lat = report.latitude;
+                    const lng = report.longitude;
+                    const label = report.hazard_type || 'Hazard Location';
+                    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+                    Linking.openURL(url).catch((err: any) => console.warn('Failed to open maps:', err));
+                  }}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 6,
+                    backgroundColor: COLORS.primary,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Navigation size={14} color="white" />
+                </TouchableOpacity>
+              )}
             </XStack>
+
+
 
             <XStack alignItems="center" gap="$2" marginBottom={6}>
               <Clock size={14} color="#6B7280" />
@@ -324,22 +339,21 @@ export default function HazardDetailsScreen() {
             </XStack> */}
           </Card>
 
-          {/* Photo Evidence */}
+          {/* Photo Evidence and Description */}
           <Card
             backgroundColor={COLORS.card}
             borderRadius={16}
             padding={14}
+            borderWidth={1}
+            borderColor="#FFFFFF"
             style={{
-              shadowColor: '#000',
-              shadowOpacity: 0.06,
-              shadowOffset: { width: 0, height: 6 },
-              shadowRadius: 12,
-              elevation: 3,
-              borderWidth: 1,
-              borderColor: '#F1F1F1',
+              shadowColor: 'rgba(0,0,0,0.1)',
+              shadowOpacity: 0.08,
+              shadowRadius: 4,
+              elevation: 4,
             }}
           >
-            <Text fontSize={14} fontWeight="600" color={COLORS.heading} marginBottom="$2">Photo Evidence</Text>
+            <Text fontSize={14} fontWeight="600" color={COLORS.heading} marginBottom="$3">Photo Evidence</Text>
 
             <YStack>
               {images.length === 0 ? (
@@ -357,87 +371,28 @@ export default function HazardDetailsScreen() {
                 })
               )}
             </YStack>
-          </Card>
 
-          {/* Description */}
-          <Card
-            backgroundColor={COLORS.card}
-            borderRadius={16}
-            padding={14}
-            style={{
-              shadowColor: '#000',
-              shadowOpacity: 0.06,
-              shadowOffset: { width: 0, height: 6 },
-              shadowRadius: 12,
-              elevation: 3,
-              borderWidth: 1,
-              borderColor: '#F1F1F1',
-            }}
-          >
+            <Separator borderColor={COLORS.border} marginVertical={16} />
+
             <Text fontSize={14} fontWeight="600" color={COLORS.heading} marginBottom="$2">Description</Text>
             <Text fontSize={12} color={COLORS.mutedText} lineHeight={20}>
               {report.description || 'No description provided.'}
             </Text>
           </Card>
 
-          {/* Map */}
-          <Card
-            backgroundColor={COLORS.card}
-            borderRadius={16}
-            padding={12}
-            style={{
-              shadowColor: '#000',
-              shadowOpacity: 0.06,
-              shadowOffset: { width: 0, height: 6 },
-              shadowRadius: 12,
-              elevation: 3,
-              borderWidth: 1,
-              borderColor: '#F1F1F1',
-            }}
-          >
-            <Text fontSize={14} fontWeight="600" color={COLORS.heading} marginBottom="$2">Location Map</Text>
 
-            <View width="100%" height={180} borderRadius={8} overflow="hidden" backgroundColor="#F9FAFB">
-              {mapRegion ? (
-                <MapView
-                  provider={PROVIDER_GOOGLE}
-                  style={{ flex: 1 }}
-                  initialRegion={mapRegion}
-                  showsUserLocation={false}
-                  showsMyLocationButton={false}
-                  onRegionChangeComplete={(reg: Region) => setMapRegion(reg)}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: Number(report.latitude),
-                      longitude: Number(report.longitude),
-                    }}
-                    title={report.hazard_type || 'Hazard'}
-                    description={report.location_address || ''}
-                  />
-                </MapView>
-              ) : (
-                <YStack flex={1} alignItems="center" justifyContent="center">
-                  <Text color={COLORS.mutedText}>Location unavailable</Text>
-                </YStack>
-              )}
-            </View>
-
-            <Text fontSize={10} color={COLORS.mutedText} marginTop="$2">{report.location_address}</Text>
-          </Card>
 
           <Card
             backgroundColor={COLORS.card}
             borderRadius={16}
             padding={18}
+            borderWidth={1}
+            borderColor="#FFFFFF"
             style={{
-              shadowColor: '#000',
-              shadowOpacity: 0.05,
-              shadowOffset: { width: 0, height: 6 },
-              shadowRadius: 10,
-              elevation: 3,
-              borderWidth: 1,
-              borderColor: '#EEE',
+              shadowColor: 'rgba(0,0,0,0.1)',
+              shadowOpacity: 0.08,
+              shadowRadius: 4,
+              elevation: 4,
             }}
           >
             <Text fontSize={16} fontWeight="700" color={COLORS.heading} marginBottom="$3">
@@ -452,12 +407,11 @@ export default function HazardDetailsScreen() {
                 </Text> */}
                 <XStack flexWrap="wrap" gap="$2">
                   {[
-                    { label: 'Pending', value: 'pending', color: '#F59E0B' },
-                    { label: 'In Progress', value: 'in_progress', color: '#3B82F6' },
-                    { label: 'Verified', value: 'verified', color: '#10B981' },
-                    { label: 'Resolved', value: 'resolved', color: '#6B7280' },
-                    { label: 'Rejected', value: 'rejected', color: '#EF4444' },
-                    { label: 'Closed', value: 'closed', color: '#8B5CF6' },
+                    { label: 'Pending', value: 'pending', color: '#9CA3AF' },
+                    { label: 'In Progress', value: 'in_progress', color: '#F59E0B' },
+                    { label: 'Verified', value: 'verified', color: '#1D4ED8' },
+                    { label: 'Resolved', value: 'resolved', color: '#16A34A' },
+                    { label: 'Closed', value: 'closed', color: '#B91C1C' },
                   ].map((status) => {
                     const isSelected = selectedStatus === status.value || report.status === status.value;
                     return (

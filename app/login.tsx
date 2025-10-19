@@ -67,15 +67,15 @@ export default function Login() {
         justifyContent="center"
         alignItems="center"
         paddingHorizontal={24}
-        gap={32}
+        gap={20}
       >
         {/* Top Section */}
         <YStack alignItems="center" gap={8}>
           <Image
             source={require('../assets/logos/hazartrack-logo.png')}
             style={{
-              width: 90,
-              height: 90,
+              width: 80,
+              height: 80,
               resizeMode: 'contain',
             }}
           />
@@ -98,28 +98,6 @@ export default function Login() {
           >
             Report fire hazards in your community
           </Text>
-
-          <YStack alignItems="center" gap={4} marginTop={8}>
-            <Text fontSize={12} color="#9E9E9E">Powered by:</Text>
-            <XStack alignItems="center" gap={8}>
-              <Image
-                source={require('../assets/logos/tagudin-logo.png')}
-                style={{
-                  width: 30,
-                  height: 30,
-                  resizeMode: 'contain',
-                }}
-              />
-              <Image
-                source={require('../assets/logos/bfp-logo.png')}
-                style={{
-                  width: 30,
-                  height: 30,
-                  resizeMode: 'contain',
-                }}
-              />
-            </XStack>
-          </YStack>
         </YStack>
 
         {/* Card */}
@@ -272,6 +250,29 @@ export default function Login() {
             </Text>
           </YStack>
         </Card>
+
+        {/* Powered By Section */}
+        <YStack alignItems="center" gap={2}>
+          <Text fontSize={12} color="#9E9E9E">Powered by:</Text>
+          <XStack alignItems="center" gap={12}>
+            <Image
+              source={require('../assets/logos/tagudin-logo.png')}
+              style={{
+                width: 40,
+                height: 40,
+                resizeMode: 'contain',
+              }}
+            />
+            <Image
+              source={require('../assets/logos/bfp-logo.png')}
+              style={{
+                width: 40,
+                height: 40,
+                resizeMode: 'contain',
+              }}
+            />
+          </XStack>
+        </YStack>
 
         {/* Footer */}
         <Text fontSize={12} color="#9E9E9E" textAlign="center">

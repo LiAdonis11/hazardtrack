@@ -1,13 +1,14 @@
 // app/(resident)/ResidentDashboard.tsx
-import React, { useCallback, useEffect, useState } from "react"
-import { Image, ScrollView, Platform, Alert, StyleSheet, TouchableOpacity, RefreshControl } from "react-native"
+import React, { useCallback, useEffect, useState, Suspense } from "react"
+import { Image, ScrollView, Platform, Alert, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { YStack, XStack, Text, Card, Button as TamButton, View, Sheet } from "tamagui"
 import { MotiView } from "moti"
 import FontAwesome from "@expo/vector-icons/FontAwesome"
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router"
 
-import { apiGetReports, apiGetNotifications, apiGetUserProfile } from "../../lib/api"
+import { apiGetReports, apiGetUserProfile } from "../../lib/api"
+import { useNotifications } from "../../context/NotificationsContext"
 import { getUserData, removeUserToken } from "../../lib/storage"
 import { useAuth } from '../../context/AuthContext'
 import { showEmergencyOptions } from "../../lib/communications"
@@ -15,11 +16,11 @@ import { showEmergencyOptions } from "../../lib/communications"
 const HEADER_RED = "#D62828"
 
 const STATUS_META: Record<string, { bg: string; text: string }> = {
-  Pending: { bg: "#FFF8E1", text: "#F57C00" },
-  "In-Progress": { bg: "#FFE0B2", text: "#E65100" },
-  Resolved: { bg: "#E8F5E9", text: "#2E7D32" },
-  Rejected: { bg: "#FFEBEE", text: "#D32F2F" },
-  Closed: { bg: "#F3E5F5", text: "#7B1FA2" },
+  Pending: { bg: "#9CA3AF", text: "#FFFFFF" },
+  Verified: { bg: "#1D4ED8", text: "#FFFFFF" },
+  "In-Progress": { bg: "#F59E0B", text: "#FFFFFF" },
+  Resolved: { bg: "#16A34A", text: "#FFFFFF" },
+  Closed: { bg: "#B91C1C", text: "#FFFFFF" },
 }
 
 const getNormalizedStatus = (status?: string | null) => {
@@ -28,10 +29,9 @@ const getNormalizedStatus = (status?: string | null) => {
   if (s === "pending" || s === "new" || s === "submitted") return "Pending"
   if (s === "in_progress" || s === "in-progress") return "In-Progress"
   if (s === "resolved") return "Resolved"
-  if (s === "rejected") return "Rejected"
+  if (s === "verified_valid" || s === "valid" || s === "verified") return "Verified"
+  if (s === "verified_false" || s === "invalid") return "Invalid"
   if (s === "closed") return "Closed"
-  if (s === "verified_valid" || s === "valid" || s === "verified") return "Resolved"
-  if (s === "verified_false" || s === "invalid") return "Rejected"
   return "Pending"
 }
 
@@ -55,10 +55,10 @@ export default function ResidentDashboard() {
   const router = useRouter()
   const { success, reportId } = useLocalSearchParams()
   const { token } = useAuth()
+  const { unreadCount } = useNotifications()
 
   const [user, setUser] = useState<any>(null)
   const [reports, setReports] = useState<any[]>([])
-  const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isOnline, setIsOnline] = useState(true)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -94,13 +94,15 @@ export default function ResidentDashboard() {
         setLoading(false)
         return
       }
+
       const res = await apiGetReports(token)
+
       if (res?.status === "success") {
         setReports(res.reports || [])
       } else {
         setReports(res?.reports || [])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("fetchReports:", err)
       setReports([])
     } finally {
@@ -108,30 +110,19 @@ export default function ResidentDashboard() {
     }
   }, [token])
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      if (token) {
-        const res = await apiGetNotifications(token)
-        if (res?.status === "success") {
-          setNotifications(res.notifications || [])
-        }
-      }
-    } catch (err) {
-      console.error("fetchNotifications:", err)
-      setNotifications([])
-    }
-  }, [token])
+
 
   const fetchUserProfile = useCallback(async () => {
     try {
       if (token) {
         const res = await apiGetUserProfile(token)
+
         if (res?.status === "success") {
           const profile = res.profile
           setSafetyScore(profile.safetyScore || 5.0)
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("fetchUserProfile:", err)
       setSafetyScore(5.0) // Default to perfect score on error
     }
@@ -152,23 +143,21 @@ export default function ResidentDashboard() {
   useFocusEffect(
     React.useCallback(() => {
       fetchReports()
-      fetchNotifications()
       fetchUserProfile()
-    }, [fetchReports, fetchNotifications, fetchUserProfile])
+    }, [fetchReports, fetchUserProfile])
   )
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
       await fetchReports()
-      await fetchNotifications()
       await fetchUserProfile()
     } catch (error) {
       console.error('Refresh error:', error)
     } finally {
       setRefreshing(false)
     }
-  }, [fetchReports, fetchNotifications, fetchUserProfile])
+  }, [fetchReports, fetchUserProfile])
 
   const handleLogout = async () => {
     await removeUserToken()
@@ -179,7 +168,10 @@ export default function ResidentDashboard() {
   const openReportForm = () => router.push("/(stack)/report-hazard")
   const openMyReports = () => router.push("/(stack)/MyReports")
 
-  const pendingCount = reports.filter((r) => (r.status || "").toLowerCase() === "pending").length
+  const activeReportsCount = reports.filter((r) => {
+    const status = (r.status || "").toLowerCase()
+    return status === "pending" || status === "verified" || status === "in_progress" || status === "verified_valid" || status === "valid"
+  }).length
   const resolvedCount = reports.filter((r) => (r.status || "").toLowerCase() === "resolved").length
 
   const shortDate = (iso?: string) => {
@@ -222,9 +214,9 @@ export default function ResidentDashboard() {
                   backgroundColor="rgba(255,255,255,0.06)"
                 >
                   <FontAwesome name="bell" size={16} color="#fff" />
-                  {notifications.filter(n => !n.is_read).length > 0 && (
+                  {unreadCount > 0 && (
                     <View style={styles.bellCount}>
-                      <Text fontSize={11} color="#fff">{notifications.filter(n => !n.is_read).length}</Text>
+                      <Text fontSize={11} color="#fff">{unreadCount}</Text>
                     </View>
                   )}
                 </View>
@@ -239,7 +231,7 @@ export default function ResidentDashboard() {
           {/* small stat row cards */}
           <XStack gap={12} marginTop={16} justifyContent="center">
             <Card backgroundColor="#fff" borderRadius={10} padding={10} width={100} alignItems="center" elevation={0} style={{ shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4 }}>
-              <Text fontSize={22} fontWeight="800" color="#2B7BE4">{reports.length}</Text>
+              <Text fontSize={22} fontWeight="800" color="#2B7BE4">{activeReportsCount}</Text>
               <Text fontSize={12} color="#2B7BE4">Active Reports</Text>
             </Card>
 
@@ -248,7 +240,8 @@ export default function ResidentDashboard() {
               <Text fontSize={12} color="#43A047">Resolved</Text>
             </Card>
 
-            <Card backgroundColor="#fff" borderRadius={10} padding={10} width={110} alignItems="center" elevation={0} style={{ shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4 }}>
+            {/* Safety Score card commented out as requested */}
+            {/* <Card backgroundColor="#fff" borderRadius={10} padding={10} width={110} alignItems="center" elevation={0} style={{ shadowColor: "#000", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 4 }}>
               <XStack alignItems="center" gap={4}>
                 <Text fontSize={22} fontWeight="800" color={getSafetyScoreColor(safetyScore)}>{safetyScore}</Text>
                 <TouchableOpacity onPress={() => setShowSafetyModal(true)} activeOpacity={0.8}>
@@ -256,7 +249,7 @@ export default function ResidentDashboard() {
                 </TouchableOpacity>
               </XStack>
               <Text fontSize={12} color={getSafetyScoreColor(safetyScore)}>Safety Score</Text>
-            </Card>
+            </Card> */}
           </XStack>
 
 

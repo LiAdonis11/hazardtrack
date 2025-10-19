@@ -174,6 +174,12 @@ export default function ProfileScreen() {
   }, [newPassword])
 
   const handleSave = async () => {
+    // Validate phone number
+    if (editedProfile.phone && (!/^09\d{8,9}$/.test(editedProfile.phone) || editedProfile.phone.length < 10 || editedProfile.phone.length > 11)) {
+      Alert.alert('Invalid Phone Number', 'Phone number must start with 09 and be 10-11 digits')
+      return
+    }
+
     try {
       if (!token) {
         Alert.alert('Error', 'No authentication token found')
@@ -333,7 +339,7 @@ export default function ProfileScreen() {
           </XStack>
         </XStack>
 
-        {/* Profile completeness badge - below the main header */}
+        {/* Profile completeness badge - below the main header
         <YStack alignItems="center" marginTop={10}>
           <View
             style={{
@@ -347,7 +353,7 @@ export default function ProfileScreen() {
               Profile {profileCompleteness()}% Complete
             </Text>
           </View>
-        </YStack>
+        </YStack> */}
         </LinearGradient>
 
         {/* Success Banner */}
@@ -480,6 +486,11 @@ export default function ProfileScreen() {
                   />
                 ) : (
                   <Text style={{ marginTop: 6 }}>{profile.phone}</Text>
+                )}
+                {isEditing && (
+                  <Text style={{ color: "#888", fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                    Phone number must start with 09 and be 10-11 digits
+                  </Text>
                 )}
               </View>
 
@@ -616,7 +627,7 @@ export default function ProfileScreen() {
               </Button>
 
               {/* DELETE ACCOUNT */}
-              <Button
+              {/* <Button
                 onPress={() => {
                   Alert.alert(
                     'Delete Account',
@@ -635,7 +646,7 @@ export default function ProfileScreen() {
                 }}
               >
                 <Text style={{ color: '#D62828', fontWeight: '700' }}>Delete Account</Text>
-              </Button>
+              </Button> */}
             </YStack>
           )}
 

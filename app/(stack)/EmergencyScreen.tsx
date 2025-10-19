@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { Linking, ScrollView, TouchableOpacity, Alert } from "react-native"
+import { Linking, ScrollView, TouchableOpacity, Alert, Platform } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { YStack, XStack, Text, Card, Button, View, Input } from "tamagui"
 import { ArrowLeft, MapPin, AlertTriangle, Phone, MessageSquare, Flame, Clock } from "@tamagui/lucide-icons"
@@ -83,18 +83,31 @@ export default function EmergencyScreen() {
           return
         }
 
-        const position = await Location.getCurrentPositionAsync({
+        // Add timeout for location request
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Location timeout')), 10000)
+        )
+
+        const positionPromise = Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High
         })
 
+        const position = await Promise.race([positionPromise, timeoutPromise]) as any
+
         const { latitude, longitude } = position.coords
 
-        // Try to reverse geocode for address
+        // Try to reverse geocode for address with timeout
         try {
-          const address = await Location.reverseGeocodeAsync({
+          const geocodeTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Geocode timeout')), 5000)
+          )
+
+          const geocodePromise = Location.reverseGeocodeAsync({
             latitude,
             longitude
           })
+
+          const address = await Promise.race([geocodePromise, geocodeTimeout]) as any
 
           let locationString = "Current Location"
           if (address && address.length > 0) {
@@ -119,9 +132,13 @@ export default function EmergencyScreen() {
             address: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`
           })
         }
-      } catch (error) {
+      } catch (error: any) {
         console.warn('Location error:', error)
-        Alert.alert('Location Error', 'Unable to get your current location. Using default location.')
+        if (error.message === 'Location timeout') {
+          Alert.alert('Location Timeout', 'Unable to get your location within 10 seconds. Using default location.')
+        } else {
+          Alert.alert('Location Error', 'Unable to get your current location. Using default location.')
+        }
       } finally {
         setLocationLoading(false)
       }
@@ -319,55 +336,90 @@ export default function EmergencyScreen() {
                   </Button>
                 </Card>
               ))}
+
+              <Card
+                borderRadius={10}
+                borderWidth={1}
+                borderColor="#FFE0B2"
+                backgroundColor="#FFF9F0"
+                padding={16}
+              >
+                <XStack alignItems="center" gap={8} marginBottom={10}>
+                  <MessageSquare size={18} color="#FF9E1C" />
+                  <Text fontWeight="700" fontSize={16} color="#C62828">
+                    Send Custom Emergency Message
+                  </Text>
+                </XStack>
+                <Text fontSize={12} color="#777" marginBottom={12}>
+                  Compose your own emergency message to send directly to BFP Tagudin
+                </Text>
+                <Input
+                  value={customMessage}
+                  onChangeText={setCustomMessage}
+                  placeholder="Type your emergency message here..."
+                  borderRadius={8}
+                  backgroundColor="#F8F9FA"
+                  borderWidth={1}
+                  borderColor="#E0E0E0"
+                  height={80}
+                  multiline
+                  padding={12}
+                  marginBottom={12}
+                  fontSize={14}
+                />
+                <Button
+                  borderRadius={8}
+                  backgroundColor="#FF9E1C"
+                  onPress={() => {
+                    if (!customMessage.trim()) {
+                      Alert.alert('Error', 'Please enter a message')
+                      return
+                    }
+                    handleSendMessage(customMessage, "0999-750-8975")
+                    setCustomMessage('')
+                  }}
+                  disabled={!customMessage.trim()}
+                >
+                  <XStack alignItems="center" gap={8}>
+                    <MessageSquare size={16} color="#fff" />
+                    <Text color="#fff" fontWeight="700">
+                      Send to BFP Tagudin
+                    </Text>
+                  </XStack>
+                </Button>
+              </Card>
+
+              <Card
+                borderRadius={10}
+                borderWidth={1}
+                borderColor="#FFE0B2"
+                backgroundColor="#FFF9F0"
+                padding={12}
+              >
+                <Button
+                  onPress={() => {
+                    const phoneUrl = Platform.OS === "ios" ? "telprompt:0999-750-8975" : "tel:0999-750-8975"
+                    Linking.openURL(phoneUrl).catch(() => {
+                      Alert.alert("Call failed", "Unable to open phone app.")
+                    })
+                  }}
+                  borderRadius={8}
+                  backgroundColor={HEADER_RED}
+                  paddingHorizontal={18}
+                  paddingVertical={10}
+                  marginTop={8}
+                >
+                  <XStack alignItems="center" gap={8}>
+                    <Phone size={14} color="#fff" />
+                    <Text color="#fff" fontWeight="700">Call Emergency: 0999-750-8975</Text>
+                  </XStack>
+                </Button>
+              </Card>
+
             </YStack>
           </Card>
 
-          {/* Custom Emergency Message */}
-          <Card backgroundColor="#fff" borderRadius={12} padding={16} borderWidth={1} borderColor="#E4E4E4">
-            <XStack alignItems="center" gap={8} marginBottom={10}>
-              <MessageSquare size={18} color="#2196F3" />
-              <Text fontWeight="700" fontSize={16}>
-                Send Custom Emergency Message
-              </Text>
-            </XStack>
-            <Text fontSize={12} color="#777" marginBottom={12}>
-              Compose your own emergency message to send directly to BFP Tagudin
-            </Text>
-            <Input
-              value={customMessage}
-              onChangeText={setCustomMessage}
-              placeholder="Type your emergency message here..."
-              borderRadius={8}
-              backgroundColor="#F8F9FA"
-              borderWidth={1}
-              borderColor="#E0E0E0"
-              height={80}
-              multiline
-              padding={12}
-              marginBottom={12}
-              fontSize={14}
-            />
-            <Button
-              borderRadius={8}
-              backgroundColor="#2196F3"
-              onPress={() => {
-                if (!customMessage.trim()) {
-                  Alert.alert('Error', 'Please enter a message')
-                  return
-                }
-                handleSendMessage(customMessage, "0999-750-8975")
-                setCustomMessage('')
-              }}
-              disabled={!customMessage.trim()}
-            >
-              <XStack alignItems="center" gap={8}>
-                <MessageSquare size={16} color="#fff" />
-                <Text color="#fff" fontWeight="700">
-                  Send to BFP Tagudin
-                </Text>
-              </XStack>
-            </Button>
-          </Card>
+
 
           {/* Fire Safety Reminders */}
           <Card

@@ -24,24 +24,25 @@ const handleApiError = (error: any, endpoint: string) => {
   }
 }
 
-export const apiRegister = async (data: { 
-  fullname: string, 
-  email: string, 
-  phone: string, 
-  password: string, 
-  address?: string 
+export const apiRegister = async (data: {
+  fullname: string,
+  email: string,
+  phone: string,
+  password: string,
+  address?: string
 }) => {
   try {
-    console.log('Registering with:', { ...data, password: '***' })
+    const registerData = { ...data, role: 'resident' };
+    console.log('Registering with:', { ...registerData, password: '***' })
     console.log('API URL:', `${API_URL}/register.php`)
-    
+
     const res = await fetch(`${API_URL}/register.php`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(registerData),
     })
     
     console.log('Register response status:', res.status)
@@ -154,6 +155,8 @@ export const apiSubmitReport = async (data: {
     })
 
     if (!res.ok) {
+      const errorText = await res.text()
+      console.error('submitReport error response:', errorText)
       throw new Error(`HTTP error! status: ${res.status}`)
     }
 
@@ -776,9 +779,8 @@ export const apiMarkNotificationRead = async (token: string, notificationId: num
     });
 
     if (!res.ok) {
-      // If endpoint doesn't exist, return success to avoid breaking the app
-      if (res.status === 404) {
-        console.warn('Notification read endpoint not found, returning mock success');
+      // If endpoint doesn't exist or bad request, return success to avoid breaking the app
+      if (res.status === 404 || res.status === 400) {
         return { status: "success" };
       }
       throw new Error(`HTTP error! status: ${res.status}`);

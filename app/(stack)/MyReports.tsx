@@ -48,11 +48,11 @@ const COLORS = {
 }
 
 const STATUS_META: Record<string, { bg: string; text: string }> = {
-  Pending: { bg: "#FFF8E1", text: "#F57C00" },
-  "In-Progress": { bg: "#FFE0B2", text: "#E65100" },
-  Resolved: { bg: "#E8F5E9", text: "#2E7D32" },
-  Rejected: { bg: "#FFEBEE", text: "#D32F2F" },
-  Closed: { bg: "#F3E5F5", text: "#7B1FA2" },
+  Pending: { bg: "#9CA3AF", text: "#FFFFFF" },
+  Verified: { bg: "#1D4ED8", text: "#FFFFFF" },
+  "In-Progress": { bg: "#F59E0B", text: "#FFFFFF" },
+  Resolved: { bg: "#16A34A", text: "#FFFFFF" },
+  Closed: { bg: "#B91C1C", text: "#FFFFFF" },
 }
 
 const getIcon = (category?: string | null) => {
@@ -76,10 +76,9 @@ const getNormalizedStatus = (status?: string | null) => {
   if (s === "pending" || s === "new" || s === "submitted") return "Pending"
   if (s === "in_progress" || s === "in-progress") return "In-Progress"
   if (s === "resolved") return "Resolved"
-  if (s === "rejected") return "Rejected"
+  if (s === "verified_valid" || s === "valid" || s === "verified") return "Verified"
+  if (s === "verified_false" || s === "invalid") return "Invalid"
   if (s === "closed") return "Closed"
-  if (s === "verified_valid" || s === "valid" || s === "verified") return "Resolved"
-  if (s === "verified_false" || s === "invalid") return "Rejected"
   return "Pending"
 }
 
@@ -87,15 +86,15 @@ const getInfoForStatus = (status?: string | null) => {
   const normalized = getNormalizedStatus(status)
   switch (normalized) {
     case "In-Progress":
-      return { bg: "#FFF4E6", border: "#FFE0B2", text: "🚨 BFP is actively working on this report" }
+      return { bg: "rgba(245, 158, 11, 0.1)", border: "#F59E0B", text: "🚨 BFP is actively working on this report" }
     case "Resolved":
-      return { bg: "#E8F5E9", border: "#C8E6C9", text: "✅ Hazard has been resolved and verified safe" }
-    case "Rejected":
-      return { bg: "#FFEBEE", border: "#FFCDD2", text: "❌ Report was rejected - please check details" }
+      return { bg: "rgba(22, 163, 74, 0.1)", border: "#16A34A", text: "✅ Hazard has been resolved and verified safe" }
+    // case "Rejected": // Commented out as requested
+    //   return { bg: "#FFEBEE", border: "#FFCDD2", text: "❌ Report was rejected - please check details" }
     case "Closed":
-      return { bg: "#F3E5F5", border: "#E1BEE7", text: "🔒 Report has been closed" }
+      return { bg: "rgba(185, 28, 28, 0.1)", border: "#B91C1C", text: "🔒 Report has been closed" }
     default:
-      return { bg: "#FFF8E1", border: "#FFECB3", text: "🕓 Awaiting BFP review" }
+      return { bg: "rgba(156, 163, 175, 0.1)", border: "#9CA3AF", text: "🕓 Awaiting BFP review" }
   }
 }
 
@@ -112,23 +111,65 @@ export default function MyReports() {
     try {
       setLoading(true)
       if (token) {
+        // First try to get cached reports from storage for immediate display
+        const { getOfflineReports } = await import('../../lib/storage')
+        try {
+          const cachedReports = await getOfflineReports()
+          if (cachedReports && cachedReports.length > 0) {
+            // Filter to show only synced reports (those with report_id)
+            const syncedReports = cachedReports.filter(r => r.report_id && !r.synced)
+            if (syncedReports.length > 0) {
+              setReports(syncedReports.map(r => ({
+                id: r.report_id,
+                category_name: r.category_name,
+                title: r.title,
+                location_address: r.location_address,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                status: r.status || 'pending',
+                priority: r.priority,
+                created_at: r.created_at,
+                assigned_to: r.assigned_to
+              })))
+              setLoading(false) // Show cached reports immediately
+            }
+          }
+        } catch (cacheError) {
+          console.warn("Failed to load cached reports", cacheError)
+        }
+
+        // Then fetch fresh data from API with timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
         const res = await apiGetReports(token)
+        clearTimeout(timeoutId)
+
         if (res?.status === "success" && Array.isArray(res.reports)) {
           setReports(res.reports)
         } else {
-          setReports([])
+          // If API fails but we have cached data, keep it
+          if (reports.length === 0) {
+            setReports([])
+          }
         }
       } else {
         setReports([])
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Fetch reports failed", e)
-      setReports([])
+      if (e.name === 'AbortError') {
+        console.warn("Request timed out")
+      }
+      // If API fails but we have cached data, keep it
+      if (reports.length === 0) {
+        setReports([])
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [token])
+  }, [token, reports.length])
 
   useEffect(() => {
     fetchReports()
@@ -143,7 +184,7 @@ export default function MyReports() {
     Pending: reports.filter((r) => getNormalizedStatus(r.status) === "Pending").length,
     "In-Progress": reports.filter((r) => getNormalizedStatus(r.status) === "In-Progress").length,
     Resolved: reports.filter((r) => getNormalizedStatus(r.status) === "Resolved").length,
-    Rejected: reports.filter((r) => getNormalizedStatus(r.status) === "Rejected").length,
+    // Rejected: reports.filter((r) => getNormalizedStatus(r.status) === "Rejected").length, // Commented out as requested
     Closed: reports.filter((r) => getNormalizedStatus(r.status) === "Closed").length,
   }
 
@@ -204,11 +245,11 @@ export default function MyReports() {
         <YStack paddingHorizontal={12} paddingTop={12} paddingBottom={10} backgroundColor="#fff" borderBottomWidth={1} borderBottomColor={COLORS.border}>
           <XStack justifyContent="space-between" gap={8}>
             {[
-              { key: "Pending", count: stats.Pending, color: COLORS.warningYellow },
-              { key: "In-Progress", count: stats["In-Progress"], color: COLORS.warningOrange },
-              { key: "Resolved", count: stats.Resolved, color: COLORS.successGreen },
-              { key: "Rejected", count: stats.Rejected, color: COLORS.fireRed },
-              
+              { key: "Pending", count: stats.Pending, color: "#9CA3AF" },
+              { key: "In-Progress", count: stats["In-Progress"], color: "#F59E0B" },
+              { key: "Resolved", count: stats.Resolved, color: "#16A34A" },
+              { key: "Closed", count: stats.Closed, color: "#B91C1C" },
+
             ].map((s) => {
               const active = selectedStatus === s.key || (selectedStatus === "All" && s.key === "Pending" && false)
               return (

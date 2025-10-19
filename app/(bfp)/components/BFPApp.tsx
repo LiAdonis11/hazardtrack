@@ -3,14 +3,14 @@ import { useState } from 'react'
 import ReportsListScreen from '../ReportsListScreen'
 import HazardDetailsScreen from '../HazardDetailsScreen'
 import CommunicationScreen from '../CommunicationScreen'
-import NearbyInspectionsScreen from '../NearbyInspectionsScreenOptimized'
+
 import ProfileScreen from './ProfileScreen'
-import NearbyInspectionsScreenOptimized from '../NearbyInspectionsScreenOptimized'
+
 // import { Report } from '../../App' // File doesn't exist
 
 type Report = any // Temporary type definition
 
-type BFPScreen = 'login' | 'reports' | 'details' | 'communication' | 'nearby' | 'profile'
+type BFPScreen = 'login' | 'reports' | 'details' | 'communication' | 'profile'
 
 interface BFPAppProps {
   isLoggedIn: boolean
@@ -37,7 +37,7 @@ export default function BFPApp({ isLoggedIn, onLogin, onLogout }: BFPAppProps) {
   }
 
   const handleBack = () => {
-    if (currentScreen === 'details' || currentScreen === 'nearby' || currentScreen === 'profile') {
+    if (currentScreen === 'details' || currentScreen === 'profile') {
       setCurrentScreen('reports')
     } else if (currentScreen === 'communication') {
       setCurrentScreen('details')
@@ -65,9 +65,9 @@ export default function BFPApp({ isLoggedIn, onLogin, onLogout }: BFPAppProps) {
         <CommunicationScreen />
       )}
 
-      {currentScreen === 'nearby' && (
+      {/* {currentScreen === 'nearby' && (
         <NearbyInspectionsScreenOptimized />
-      )}
+      )} */}
 
       {currentScreen === 'profile' && (
         <ProfileScreen />

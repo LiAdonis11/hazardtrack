@@ -1,5 +1,5 @@
 // Resident Report Details Screen - Read-only view for residents
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   ScrollView,
   Image,
@@ -8,8 +8,9 @@ import {
   View as RNView,
   Linking,
   RefreshControl,
+  Platform,
 } from 'react-native'
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
+import _ from 'lodash'
 import { YStack, XStack, View, Separator } from 'tamagui'
 import { Text } from '../(bfp)/ui/text'
 import { Button } from '../(bfp)/ui/button'
@@ -51,11 +52,11 @@ const COLORS = {
 }
 
 const STATUS_META: Record<string, { bg: string; text: string }> = {
-  Pending: { bg: "#FFF8E1", text: "#F57C00" },
-  "In-Progress": { bg: "#FFE0B2", text: "#E65100" },
-  Resolved: { bg: "#E8F5E9", text: "#2E7D32" },
-  Rejected: { bg: "#FFEBEE", text: "#D32F2F" },
-  Closed: { bg: "#F3E5F5", text: "#7B1FA2" },
+  Pending: { bg: "#9CA3AF", text: "#FFFFFF" },
+  Verified: { bg: "#1D4ED8", text: "#FFFFFF" },
+  "In-Progress": { bg: "#F59E0B", text: "#FFFFFF" },
+  Resolved: { bg: "#16A34A", text: "#FFFFFF" },
+  Closed: { bg: "#B91C1C", text: "#FFFFFF" },
 }
 
 const getNormalizedStatus = (status?: string | null) => {
@@ -64,10 +65,9 @@ const getNormalizedStatus = (status?: string | null) => {
   if (s === "pending" || s === "new" || s === "submitted") return "Pending"
   if (s === "in_progress" || s === "in-progress") return "In-Progress"
   if (s === "resolved") return "Resolved"
-  if (s === "rejected") return "Rejected"
+  if (s === "verified_valid" || s === "valid" || s === "verified") return "Verified"
+  if (s === "verified_false" || s === "invalid") return "Invalid"
   if (s === "closed") return "Closed"
-  if (s === "verified_valid" || s === "valid" || s === "verified") return "Resolved"
-  if (s === "verified_false" || s === "invalid") return "Rejected"
   return "Pending"
 }
 
@@ -88,18 +88,16 @@ const getPriorityColor = (priority?: string) => {
 
 const getRelativeTime = (dateStr?: string) => {
   if (!dateStr) return ''
-  const now = new Date()
   const date = new Date(dateStr)
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return 'just now'
-  if (diffMin === 1) return '1 min ago'
-  if (diffMin < 60) return `${diffMin} mins ago`
-  const diffH = Math.floor(diffMin / 60)
-  if (diffH === 1) return '1 hour ago'
-  if (diffH < 24) return `${diffH} hours ago`
-  const diffD = Math.floor(diffH / 24)
-  return `${diffD} day${diffD > 1 ? 's' : ''} ago`
+  if (isNaN(date.getTime())) return 'Unknown time'
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
 }
 
 const getProgressSteps = (status?: string) => {
@@ -116,22 +114,22 @@ const getProgressSteps = (status?: string) => {
       id: 2,
       title: 'Under Review',
       description: 'BFP personnel are reviewing the report',
-      completed: ['verified_valid', 'verified_false', 'in_progress', 'resolved', 'rejected', 'closed'].includes(currentStatus),
+      completed: ['verified_valid', 'verified_false', 'in_progress', 'resolved', 'closed'].includes(currentStatus), // Removed 'rejected'
       active: ['verified_valid', 'verified_false'].includes(currentStatus)
     },
     {
       id: 3,
       title: 'In Progress',
       description: 'BFP is actively working to resolve the issue',
-      completed: ['resolved', 'rejected', 'closed'].includes(currentStatus),
+      completed: ['resolved', 'closed'].includes(currentStatus), // Removed 'rejected'
       active: currentStatus === 'in_progress'
     },
     {
       id: 4,
       title: 'Completed',
       description: 'Issue has been resolved or closed',
-      completed: ['resolved', 'rejected', 'closed'].includes(currentStatus),
-      active: ['resolved', 'rejected', 'closed'].includes(currentStatus)
+      completed: ['resolved', 'closed'].includes(currentStatus), // Removed 'rejected'
+      active: ['resolved', 'closed'].includes(currentStatus) // Removed 'rejected'
     }
   ]
 }
@@ -144,8 +142,6 @@ export default function ResidentReportDetails() {
 
   const [report, setReport] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const [mapRegion, setMapRegion] = useState<Region | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
 
   const fetchReport = async () => {
     try {
@@ -153,23 +149,25 @@ export default function ResidentReportDetails() {
         setReport(null)
         return
       }
+
+      // Add timeout for API call
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
       const res = await apiGetReports(token)
+      clearTimeout(timeoutId)
+
       if (res?.status === 'success') {
         const found = res.reports.find((r: any) => String(r.id) === String(id))
         if (found) {
           setReport(found)
-          if (found.latitude && found.longitude) {
-            setMapRegion({
-              latitude: Number(found.latitude),
-              longitude: Number(found.longitude),
-              latitudeDelta: 0.0015,
-              longitudeDelta: 0.0015,
-            })
-          }
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('fetchReport error', err)
+      if (err.name === 'AbortError') {
+        console.warn('Request timed out')
+      }
     }
   }
 
@@ -186,16 +184,7 @@ export default function ResidentReportDetails() {
     }
   }, [id, token])
 
-  const onRefresh = async () => {
-    setRefreshing(true)
-    try {
-      await fetchReport()
-    } catch (error) {
-      console.error('Refresh error:', error)
-    } finally {
-      setRefreshing(false)
-    }
-  }
+
 
   if (loading) {
     return (
@@ -244,7 +233,6 @@ export default function ResidentReportDetails() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <YStack padding="$4" gap="$4" paddingBottom={160}>
           {/* Hazard type + status badge inline */}
@@ -380,26 +368,7 @@ export default function ResidentReportDetails() {
             </XStack>
           </Card>
 
-          {/* Description */}
-          <Card
-            backgroundColor={COLORS.cardBg}
-            borderRadius={12}
-            padding={12}
-            style={{
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              shadowColor: '#000',
-              shadowOpacity: 0.04,
-              shadowOffset: { width: 0, height: 4 },
-              shadowRadius: 10,
-              elevation: 2,
-            }}
-          >
-            <Text fontSize={16} fontWeight="700" marginBottom={8}>Description</Text>
-            <Text fontSize={14} color={COLORS.mutedText}>{report.description || 'No description provided.'}</Text>
-          </Card>
-
-          {/* Photo Evidence */}
+          {/* Photo Evidence and Description */}
           <Card
             backgroundColor={COLORS.cardBg}
             borderRadius={12}
@@ -426,13 +395,27 @@ export default function ResidentReportDetails() {
                   const uri = img.startsWith('http') ? img : `${API_URL.replace('/api', '')}/uploads/${img}`
                   return (
                     <RNView key={idx} style={{ marginBottom: 12 }}>
-                      <Image source={{ uri }} style={{ width: '100%', height: 160, borderRadius: 8 }} resizeMode="cover" />
+                      <Image
+                        source={{ uri }}
+                        style={{ width: '100%', height: 160, borderRadius: 8 }}
+                        resizeMode="cover"
+                        onError={(error) => {
+                          console.warn('Image load error:', error.nativeEvent.error, 'URI:', uri)
+                        }}
+                      />
                     </RNView>
                   )
                 })
               )}
             </YStack>
+
+            <Separator borderColor={COLORS.border} marginVertical={16} />
+
+            <Text fontSize={16} fontWeight="700" marginBottom={8}>Description</Text>
+            <Text fontSize={14} color={COLORS.mutedText}>{report.description || 'No description provided.'}</Text>
           </Card>
+
+
 
           {/* BFP Notes (if any) */}
           {report.bfp_notes || report.admin_notes ? (
@@ -455,49 +438,6 @@ export default function ResidentReportDetails() {
               <View style={{ backgroundColor: COLORS.pillBlueBg, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: COLORS.pillBlueBorder }}>
                 <Text color={COLORS.verifiedBlue}>{report.bfp_notes || report.admin_notes}</Text>
               </View>
-            </Card>
-          ) : null}
-
-          {/* GPS Location (visual) */}
-          {mapRegion ? (
-            <Card
-              backgroundColor={COLORS.cardBg}
-              borderRadius={12}
-              padding={12}
-              style={{
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                shadowColor: '#000',
-                shadowOpacity: 0.04,
-                shadowOffset: { width: 0, height: 4 },
-                shadowRadius: 10,
-                elevation: 2,
-              }}
-            >
-              <Text fontSize={16} fontWeight="700" marginBottom={8}>GPS Location</Text>
-
-              <View style={{ backgroundColor: '#EFEFF1', height: 120, borderRadius: 10, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                <MapView
-                  provider={PROVIDER_GOOGLE}
-                  style={{ width: '100%', height: '100%' }}
-                  initialRegion={mapRegion}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: Number(report.latitude) || mapRegion.latitude,
-                      longitude: Number(report.longitude) || mapRegion.longitude,
-                    }}
-                  />
-                </MapView>
-              </View>
-
-              <Text fontSize={12} color={COLORS.mutedText} marginTop={8}>
-                {report.latitude && report.longitude
-                  ? `${Number(report.latitude).toFixed(3)}°N, ${Number(report.longitude).toFixed(3)}°E`
-                  : 'No coordinates'}
-              </Text>
             </Card>
           ) : null}
 

@@ -8,6 +8,7 @@ import {
   Image as RNImage,
   Dimensions,
   ScrollView,
+  Linking,
 } from "react-native"
 import * as ImagePicker from "expo-image-picker"
 import * as Location from "expo-location"
@@ -27,9 +28,11 @@ import {
 import { Flame, MapPin, Camera, FileText, Phone } from "@tamagui/lucide-icons"
 import { MotiView } from "moti"
 
-import { getUserData } from "../../lib/storage"
+import { getUserData, addOfflineReport, getOfflineReports, removeOfflineReport } from "../../lib/storage"
 import { apiSubmitReport } from "../../lib/api"
 import { useAuth } from '../../context/AuthContext'
+import * as Network from 'expo-network'
+import { API_URL } from '../../lib/config'
 
 // visual tokens (match screenshot)
 const HEADER_RED = "#D62828"
@@ -57,6 +60,42 @@ export default function ReportHazard() {
   // user
   const [user, setUser] = useState<any>(null)
 
+  // categories state
+  const [categories, setCategories] = useState<any[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoryInput, setCategoryInput] = useState<string>("")
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<any>(null)
+
+  // Sync offline reports when online
+  const syncOfflineReports = useCallback(async () => {
+    try {
+      const networkState = await Network.getNetworkStateAsync()
+      if (!networkState.isConnected || !networkState.isInternetReachable) {
+        return // Not online
+      }
+
+      const offlineReports = await getOfflineReports()
+      if (offlineReports.length === 0) return
+
+      for (const report of offlineReports) {
+        if (!report.synced) {
+          try {
+            const res = await apiSubmitReport(report)
+            if (res?.status === "success") {
+              await removeOfflineReport(report.offlineId)
+              console.log('Synced offline report:', report.offlineId)
+            }
+          } catch (error) {
+            console.error('Failed to sync report:', report.offlineId, error)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing offline reports:', error)
+    }
+  }, [])
+
   useEffect(() => {
     ;(async () => {
       try {
@@ -73,8 +112,8 @@ export default function ReportHazard() {
         setCategoriesLoading(true)
         console.log('Token for categories:', token)
         if (token) {
-          console.log('Fetching categories...')
-          const response = await fetch('http://localhost/api/get_categories.php', {
+        console.log('Fetching categories...')
+        const response = await fetch(`${API_URL}/get_categories.php`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -90,31 +129,26 @@ export default function ReportHazard() {
             console.warn('API returned error:', data.message)
             // Fallback categories if API fails
             setCategories([
-              { id: 1, name: 'Faulty Electrical Wiring', description: 'Exposed or deteriorated electrical lines that may spark or short circuit', color: '#FACC15' },
-              { id: 2, name: 'LPG Leak / Improper Storage', description: 'Leaking or poorly stored LPG tanks near heat sources or indoors', color: '#FB923C' },
-              { id: 3, name: 'Damaged Electrical Post / Transformer', description: 'Leaning post, exposed power lines, or sparking transformer', color: '#38BDF8' },
-              { id: 4, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
-              { id: 5, name: 'Flammable / Combustible Materials', description: 'Improper storage of fuels, chemicals, or piles of combustible waste', color: '#F87171' },
-              { id: 6, name: 'Missing Fire Safety Equipment', description: 'No extinguisher, alarm, or smoke detector in place or functional', color: '#34D399' },
-              { id: 7, name: 'Open Burning / Grassfire', description: 'Uncontrolled burning of trash or vegetation in open areas', color: '#FBBF24' },
-              { id: 8, name: 'Negligent Fire Behavior', description: 'Unattended cooking, smoking near flammables, or unsafe fire use', color: '#EF4444' },
-              { id: 9, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
+              { id: 1, name: 'Undermined Electrical Wiring', description: 'Exposed, unstable, or unsafe electrical lines that may cause short circuits or fire', color: '#FACC15' },
+              { id: 2, name: 'LPG Leak', description: 'Leaking or improperly handled LPG tanks that may cause fire or explosion', color: '#FB923C' },
+              { id: 3, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
+              { id: 4, name: 'Rubbish/Grass Fire', description: 'Piles of combustible materials such as paper, plastics, or waste stored unsafely', color: '#F87171' },
+              { id: 5, name: 'Damaged Electrical Post / Transformer', description: 'Leaning or damaged electrical posts, exposed wires, or malfunctioning transformers', color: '#38BDF8' },
+              { id: 6, name: 'Defective Fire Safety Equipment', description: 'Fire extinguishers, alarms, or detectors missing or not functional', color: '#34D399' },
+              { id: 7, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
             ])
-
           }
         } else {
           console.warn('No token available for categories fetch')
           // Fallback categories if no token
           setCategories([
-            { id: 1, name: 'Faulty Electrical Wiring', description: 'Exposed or deteriorated electrical lines that may spark or short circuit', color: '#FACC15' },
-            { id: 2, name: 'LPG Leak / Improper Storage', description: 'Leaking or poorly stored LPG tanks near heat sources or indoors', color: '#FB923C' },
-            { id: 3, name: 'Damaged Electrical Post / Transformer', description: 'Leaning post, exposed power lines, or sparking transformer', color: '#38BDF8' },
-            { id: 4, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
-            { id: 5, name: 'Flammable / Combustible Materials', description: 'Improper storage of fuels, chemicals, or piles of combustible waste', color: '#F87171' },
-            { id: 6, name: 'Missing Fire Safety Equipment', description: 'No extinguisher, alarm, or smoke detector in place or functional', color: '#34D399' },
-            { id: 7, name: 'Open Burning / Grassfire', description: 'Uncontrolled burning of trash or vegetation in open areas', color: '#FBBF24' },
-            { id: 8, name: 'Negligent Fire Behavior', description: 'Unattended cooking, smoking near flammables, or unsafe fire use', color: '#EF4444' },
-            { id: 9, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
+          { id: 1, name: 'Undermined Electrical Wiring', description: 'Exposed, unstable, or unsafe electrical lines that may cause short circuits or fire', color: '#FACC15' },
+              { id: 2, name: 'LPG Leak', description: 'Leaking or improperly handled LPG tanks that may cause fire or explosion', color: '#FB923C' },
+              { id: 3, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
+              { id: 4, name: 'Flammable Clutter', description: 'Piles of combustible materials such as paper, plastics, or waste stored unsafely', color: '#F87171' },
+              { id: 5, name: 'Damaged Electrical Post / Transformer', description: 'Leaning or damaged electrical posts, exposed wires, or malfunctioning transformers', color: '#38BDF8' },
+              { id: 6, name: 'Defective Fire Safety Equipment', description: 'Fire extinguishers, alarms, or detectors missing or not functional', color: '#34D399' },
+              { id: 7, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
           ])
 
         }
@@ -122,31 +156,27 @@ export default function ReportHazard() {
         console.warn('Failed to fetch categories', e)
         // Fallback categories if fetch fails
         setCategories([
-          { id: 1, name: 'Faulty Electrical Wiring', description: 'Exposed or deteriorated electrical lines that may spark or short circuit', color: '#FACC15' },
-          { id: 2, name: 'LPG Leak / Improper Storage', description: 'Leaking or poorly stored LPG tanks near heat sources or indoors', color: '#FB923C' },
-          { id: 3, name: 'Damaged Electrical Post / Transformer', description: 'Leaning post, exposed power lines, or sparking transformer', color: '#38BDF8' },
-          { id: 4, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
-          { id: 5, name: 'Flammable / Combustible Materials', description: 'Improper storage of fuels, chemicals, or piles of combustible waste', color: '#F87171' },
-          { id: 6, name: 'Missing Fire Safety Equipment', description: 'No extinguisher, alarm, or smoke detector in place or functional', color: '#34D399' },
-          { id: 7, name: 'Open Burning / Grassfire', description: 'Uncontrolled burning of trash or vegetation in open areas', color: '#FBBF24' },
-          { id: 8, name: 'Negligent Fire Behavior', description: 'Unattended cooking, smoking near flammables, or unsafe fire use', color: '#EF4444' },
-          { id: 9, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
+        { id: 1, name: 'Undermined Electrical Wiring', description: 'Exposed, unstable, or unsafe electrical lines that may cause short circuits or fire', color: '#FACC15' },
+              { id: 2, name: 'LPG Leak', description: 'Leaking or improperly handled LPG tanks that may cause fire or explosion', color: '#FB923C' },
+              { id: 3, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
+              { id: 4, name: 'Flammable Clutter', description: 'Piles of combustible materials such as paper, plastics, or waste stored unsafely', color: '#F87171' },
+              { id: 5, name: 'Damaged Electrical Post / Transformer', description: 'Leaning or damaged electrical posts, exposed wires, or malfunctioning transformers', color: '#38BDF8' },
+              { id: 6, name: 'Defective Fire Safety Equipment', description: 'Fire extinguishers, alarms, or detectors missing or not functional', color: '#34D399' },
+              { id: 7, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
         ])
 
       } finally {
         setCategoriesLoading(false)
       }
     })()
-  }, [])
 
-  // categories state
-  const [categories, setCategories] = useState<any[]>([])
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [categoryInput, setCategoryInput] = useState<string>("")
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<any>(null)
+    // Sync offline reports on mount
+    syncOfflineReports()
+  }, [token, syncOfflineReports])
 
-  // Image picker
+
+
+  // Image picker from gallery
   const pickImage = useCallback(async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -164,6 +194,27 @@ export default function ReportHazard() {
       }
     } catch (err) {
       console.warn("pickImage error", err)
+    }
+  }, [])
+
+  // Take photo with camera
+  const takePhoto = useCallback(async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync()
+      if (!perm.granted) {
+        Alert.alert("Permissions required", "Allow camera access to take photos.")
+        return
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      })
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImages((p) => [...p, result.assets[0].uri])
+      }
+    } catch (err) {
+      console.warn("takePhoto error", err)
     }
   }, [])
 
@@ -273,17 +324,134 @@ const handleSubmit = useCallback(async () => {
         setShowSuccess(false)
         router.push("/")
       }, 2000)
+      // Try to sync offline reports after successful submission
+      syncOfflineReports()
     } else {
-      Alert.alert("Error", res?.message || "Submission failed")
+      // Check if it's a network error
+      const networkState = await Network.getNetworkStateAsync()
+      if (!networkState.isConnected || !networkState.isInternetReachable) {
+        // Save to offline storage
+        await addOfflineReport(data)
+        Alert.alert("Saved Offline", "Report saved locally. It will be submitted when you're back online.")
+        setShowSuccess(true)
+        setTimeout(() => {
+          setShowSuccess(false)
+          router.push("/")
+        }, 2000)
+      } else {
+        Alert.alert("Error", res?.message || "Submission failed")
+      }
     }
   } catch (err) {
     console.error("submit error", err)
-    Alert.alert("Submission failed", "An error occurred while submitting.")
+    // Check network status
+    const networkState = await Network.getNetworkStateAsync()
+    if (!networkState.isConnected || !networkState.isInternetReachable) {
+      // Save to offline storage
+      const data = {
+        token,
+        category_id: selectedCategory?.id,
+        title: selectedCategory?.name?.substring(0, 50),
+        description,
+        image: null, // Can't save image offline easily
+        location_address: address.trim() ? `${address.trim()}, ${barangay.trim()}, Tagudin, Ilocos Sur` : `${barangay.trim()}, Tagudin, Ilocos Sur`,
+        latitude: latitude || undefined,
+        longitude: longitude || undefined,
+        phone: user?.phone,
+      }
+      await addOfflineReport(data)
+      Alert.alert("Saved Offline", "Report saved locally. It will be submitted when you're back online.")
+      setShowSuccess(true)
+      setTimeout(() => {
+        setShowSuccess(false)
+        router.push("/")
+      }, 2000)
+    } else {
+      Alert.alert("Submission failed", "An error occurred while submitting.")
+    }
   } finally {
     setSubmitting(false)
   }
-}, [selectedCategory, categoryInput, categories, address, barangay, latitude, longitude, description, images, router, user, token])
+  }, [selectedCategory, categoryInput, categories, address, barangay, latitude, longitude, description, images, router, user, token])
 
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const u = await getUserData()
+        setUser(u)
+      } catch (e) {
+        // ignore
+      }
+    })()
+
+    // Fetch categories
+    ;(async () => {
+      try {
+        setCategoriesLoading(true)
+        console.log('Token for categories:', token)
+        if (token) {
+        console.log('Fetching categories...')
+        const response = await fetch(`${API_URL}/get_categories.php`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          console.log('Response status:', response.status)
+          const data = await response.json()
+          console.log('Categories data:', data)
+          if (data.status === 'success') {
+            console.log('Setting categories:', data.categories.length)
+            setCategories(data.categories)
+          } else {
+            console.warn('API returned error:', data.message)
+            // Fallback categories if API fails
+            setCategories([
+            { id: 1, name: 'Undermined Electrical Wiring', description: 'Exposed, unstable, or unsafe electrical lines that may cause short circuits or fire', color: '#FACC15' },
+              { id: 2, name: 'LPG Leak', description: 'Leaking or improperly handled LPG tanks that may cause fire or explosion', color: '#FB923C' },
+              { id: 3, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
+              { id: 4, name: 'Flammable Clutter', description: 'Piles of combustible materials such as paper, plastics, or waste stored unsafely', color: '#F87171' },
+              { id: 5, name: 'Damaged Electrical Post / Transformer', description: 'Leaning or damaged electrical posts, exposed wires, or malfunctioning transformers', color: '#38BDF8' },
+              { id: 6, name: 'Defective Fire Safety Equipment', description: 'Fire extinguishers, alarms, or detectors missing or not functional', color: '#34D399' },
+              { id: 7, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
+            ])
+
+          }
+        } else {
+          console.warn('No token available for categories fetch')
+          // Fallback categories if no token
+          setCategories([
+    { id: 1, name: 'Undermined Electrical Wiring', description: 'Exposed, unstable, or unsafe electrical lines that may cause short circuits or fire', color: '#FACC15' },
+              { id: 2, name: 'LPG Leak', description: 'Leaking or improperly handled LPG tanks that may cause fire or explosion', color: '#FB923C' },
+              { id: 3, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
+              { id: 4, name: 'Rubbish/Grass Fire', description: 'Piles of combustible materials such as paper, plastics, or waste stored unsafely', color: '#F87171' },
+              { id: 5, name: 'Damaged Electrical Post / Transformer', description: 'Leaning or damaged electrical posts, exposed wires, or malfunctioning transformers', color: '#38BDF8' },
+              { id: 6, name: 'Defective Fire Safety Equipment', description: 'Fire extinguishers, alarms, or detectors missing or not functional', color: '#34D399' },
+              { id: 7, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
+          ])
+
+        }
+      } catch (e) {
+        console.warn('Failed to fetch categories', e)
+        // Fallback categories if fetch fails
+        setCategories([
+     { id: 1, name: 'Undermined Electrical Wiring', description: 'Exposed, unstable, or unsafe electrical lines that may cause short circuits or fire', color: '#FACC15' },
+              { id: 2, name: 'LPG Leak', description: 'Leaking or improperly handled LPG tanks that may cause fire or explosion', color: '#FB923C' },
+              { id: 3, name: 'Blocked Fire Exit', description: 'Fire exits obstructed by furniture, locks, or debris', color: '#A78BFA' },
+              { id: 4, name: 'Rubbish/Grass Fire', description: 'Piles of combustible materials such as paper, plastics, or waste stored unsafely', color: '#F87171' },
+              { id: 5, name: 'Damaged Electrical Post / Transformer', description: 'Leaning or damaged electrical posts, exposed wires, or malfunctioning transformers', color: '#38BDF8' },
+              { id: 6, name: 'Defective Fire Safety Equipment', description: 'Fire extinguishers, alarms, or detectors missing or not functional', color: '#34D399' },
+              { id: 7, name: 'Other Fire-Related Hazard', description: 'Any other safety issue that poses a fire risk not listed above', color: '#9CA3AF' },
+        ])
+
+      } finally {
+        setCategoriesLoading(false)
+      }
+    })()
+
+    // Sync offline reports on mount
+    syncOfflineReports()
+  }, [token, syncOfflineReports])
 
   // small helper for responsive widths
   const cardWidth = Math.min(760, WINDOW.width - 36)
@@ -453,12 +621,20 @@ const handleSubmit = useCallback(async () => {
                   Photos help BFP verify and prioritize your report
                 </Text>
 
-                <TouchableOpacity style={styles.photoDrop} onPress={pickImage} activeOpacity={0.8}>
-                  <XStack alignItems="center" gap={10}>
-                    <Camera size={18} color="#777" />
-                    <Text color="#777">Add Photo</Text>
-                  </XStack>
-                </TouchableOpacity>
+                <XStack gap={8}>
+                  <TouchableOpacity style={styles.photoDrop} onPress={pickImage} activeOpacity={0.8}>
+                    <XStack alignItems="center" gap={10}>
+                      <FileText size={18} color="#777" />
+                      <Text color="#777">Choose from Gallery</Text>
+                    </XStack>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.photoDrop} onPress={takePhoto} activeOpacity={0.8}>
+                    <XStack alignItems="center" gap={10}>
+                      <Camera size={18} color="#777" />
+                      <Text color="#777">Take Photo</Text>
+                    </XStack>
+                  </TouchableOpacity>
+                </XStack>
 
                 <XStack gap={8} marginTop={8} flexWrap="wrap">
                   {images.map((i, idx) => (
@@ -516,14 +692,10 @@ const handleSubmit = useCallback(async () => {
 
                   <Button
                     onPress={() => {
-                      const phoneUrl = Platform.OS === "ios" ? "telprompt:911" : "tel:911"
-                      // safe action: show alert in dev, uncomment for real
-                      try {
-                        // Linking.openURL(phoneUrl)
-                        Alert.alert("Call Emergency", "Would open phone app to call 911 on a real device.")
-                      } catch {
+                      const phoneUrl = Platform.OS === "ios" ? "telprompt:0999-750-8975" : "tel:0999-750-8975"
+                      Linking.openURL(phoneUrl).catch(() => {
                         Alert.alert("Call failed", "Unable to open phone app.")
-                      }
+                      })
                     }}
                     borderRadius={8}
                     backgroundColor={HEADER_RED}
@@ -533,7 +705,7 @@ const handleSubmit = useCallback(async () => {
                   >
                     <XStack alignItems="center" gap={8}>
                       <Phone size={14} color="#fff" />
-                      <Text color="#fff" fontWeight="700">Call Emergency: 911</Text>
+                      <Text color="#fff" fontWeight="700">Call Emergency: 0999-750-8975</Text>
                     </XStack>
                   </Button>
                 </YStack>

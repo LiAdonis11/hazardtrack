@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'tamagui';
-import { API_URL, API_URL_MOBILE } from '../lib/config';
+import { API_URL } from '../lib/config';
 import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 const PasswordInput = React.forwardRef<RNTextInput, any>(
@@ -116,6 +116,8 @@ export default function RegisterScreen() {
     if (password !== confirmPassword)
       newErrors.confirmPassword = 'Passwords do not match';
     if (!phone) newErrors.phone = 'Phone number is required';
+    else if (phone.length < 10 || phone.length > 11) newErrors.phone = 'Phone number must be 10-11 digits';
+    else if (!/^09\d{8,9}$/.test(phone)) newErrors.phone = 'Phone number must start with 09 and be 10-11 digits';
     if (!address) newErrors.address = 'Address is required';
 
     setErrors(newErrors);
@@ -130,7 +132,11 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      const apiUrl = Platform.OS === 'web' ? API_URL : API_URL_MOBILE;
+      // Add timeout for registration API call
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout for registration
+
+      const apiUrl = API_URL;
       const response = await fetch(`${apiUrl}/register.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -142,8 +148,10 @@ export default function RegisterScreen() {
           address,
           role: 'resident',
         }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId)
       const result = await response.json();
 
       if (result.status === 'success') {
@@ -155,8 +163,13 @@ export default function RegisterScreen() {
       } else {
         Alert.alert('Registration Failed', result.message || 'Please try again.');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Network error. Please try again.');
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.warn('Registration timed out')
+        Alert.alert('Timeout', 'Registration is taking longer than expected. Please try again.');
+      } else {
+        Alert.alert('Error', 'Network error. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

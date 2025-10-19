@@ -9,7 +9,7 @@
 //   Linking,
 //   Pressable,
 // } from 'react-native'
-// import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
+// // import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
 // import { YStack, XStack, View, Separator } from 'tamagui'
 // import { TextInput } from 'react-native'
 // import { Text } from './ui/text'

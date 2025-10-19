@@ -84,7 +84,34 @@ export default function ProfileScreen() {
     }
 
     try {
+      // First try to get user data from storage for immediate display
+      const { getUserData } = await import('../../lib/storage')
+      const storedUserData = await getUserData()
+      if (storedUserData) {
+        const tempProfile: UserProfile = {
+          id: storedUserData.id.toString(),
+          name: storedUserData.fullname,
+          email: storedUserData.email,
+          phone: storedUserData.phone || "",
+          address: storedUserData.address || "",
+          joinedDate: storedUserData.created_at || new Date().toISOString(),
+          totalReports: 0, // Will be updated from API
+          resolvedReports: 0, // Will be updated from API
+          emergencyContact: storedUserData.phone || "",
+          profileImage: undefined,
+        }
+        setProfile(tempProfile)
+        setEditedProfile(tempProfile)
+        setLoading(false) // Show profile immediately
+      }
+
+      // Then fetch full profile data from API with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
       const response = await apiGetUserProfile(token)
+      clearTimeout(timeoutId)
+
       if (response.status === 'success') {
         const profileData = response.profile
         const userProfile: UserProfile = {
@@ -104,11 +131,13 @@ export default function ProfileScreen() {
       } else {
         Alert.alert('Error', response.message || 'Failed to load profile')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching profile:', error)
-      Alert.alert('Error', 'Failed to load profile data')
-    } finally {
-      setLoading(false)
+      if (error.name === 'AbortError') {
+        Alert.alert('Timeout', 'Request timed out. Please check your connection.')
+      } else {
+        Alert.alert('Error', 'Failed to load profile data')
+      }
     }
   }
 
@@ -137,6 +166,12 @@ export default function ProfileScreen() {
   }, [newPassword])
 
   const handleSave = async () => {
+    // Validate phone number
+    if (editedProfile.phone && (!/^09\d{8,9}$/.test(editedProfile.phone) || editedProfile.phone.length < 10 || editedProfile.phone.length > 11)) {
+      Alert.alert('Invalid Phone Number', 'Phone number must start with 09 and be 10-11 digits')
+      return
+    }
+
     try {
       if (authLoading) return;
 
@@ -417,6 +452,11 @@ export default function ProfileScreen() {
                     />
                   ) : (
                     <Text>{profile.phone}</Text>
+                  )}
+                  {isEditing && (
+                    <Text style={{ color: "#888", fontSize: 12, marginTop: 4, marginLeft: 4 }}>
+                      Phone number must start with 09 and be 10-11 digits
+                    </Text>
                   )}
                 </View>
 

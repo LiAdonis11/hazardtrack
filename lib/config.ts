@@ -1,17 +1,21 @@
 import { Platform } from 'react-native'
 
-// Use localhost for web testing
-const API_URL_WEB = 'http://192.168.254.183/hazardTrackV2/api'
+// Set to true for online deployment, false for local development
+const IS_ONLINE = true
 
-// For mobile device access, use your machine's IP address
-// Current IP based on ipconfig: 10.124.198.150 (backup IP)
-export const API_URL_MOBILE = 'http://192.168.254.183/hazardTrackV2/api'
+// Online API URL
+const API_URL_ONLINE = 'https://dailyph.com/api'
+
+// Local API URLs
+const API_URL_LOCAL_WEB = 'http://192.168.1.39/api'
+const API_URL_LOCAL_MOBILE = 'http://192.168.1.39/api'
 
 // Detect platform and use appropriate URL
-export const API_URL = Platform.OS === 'web' ? API_URL_WEB :
-  Platform.OS === 'android' ? 'http://192.168.254.183/hazardTrackV2/api' :
-  Platform.OS === 'ios' ? 'http://localhost/hazardTrackV2/api' :
-  API_URL_MOBILE
+export const API_URL = IS_ONLINE ? API_URL_ONLINE :
+  Platform.OS === 'web' ? API_URL_LOCAL_WEB :
+  Platform.OS === 'android' ? API_URL_LOCAL_MOBILE :
+  Platform.OS === 'ios' ? 'https://dailyph.com/api' :
+  API_URL_LOCAL_MOBILE
 
 // For Android emulator, use:
 // export const API_URL = 'http://10.0.2.2/hazardTrackV2/api'

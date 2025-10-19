@@ -26,7 +26,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome"
 import { MotiView } from "moti"
 import { useRouter } from "expo-router"
 import { useFocusEffect } from "@react-navigation/native"
-import { apiGetAllReports, apiGetNotifications } from "../../lib/api"
+import { apiGetAllReports } from "../../lib/api"
+import { useNotifications } from "../../context/NotificationsContext"
 import { getUserToken } from "../../lib/storage"
 
 type ReportItem = {
@@ -35,7 +36,6 @@ type ReportItem = {
   title?: string
   location_address?: string
   status?: string | null
-  priority?: string
   created_at?: string
 }
 
@@ -48,27 +48,15 @@ const getIcon = (category: string | null | undefined = "") => {
   return AlertTriangle
 }
 
-const getPriorityColor = (priority?: string) => {
-  if (!priority) return '#6B7280'
-  switch (priority.toLowerCase()) {
-    case 'high':
-    case 'emergency':
-      return '#DC2626'
-    case 'medium':
-      return '#F59E0B'
-    case 'low':
-      return '#10B981'
-    default:
-      return '#6B7280'
-  }
-}
+
 
 const STATUS_META: Record<string, { bg: string; text: string }> = {
-  Pending: { bg: "#FFF8E1", text: "#F57C00" },
-  "In-Progress": { bg: "#FFE0B2", text: "#E65100" },
-  Resolved: { bg: "#E8F5E9", text: "#2E7D32" },
-  Rejected: { bg: "#FFEBEE", text: "#D32F2F" },
-  Closed: { bg: "#F3E5F5", text: "#7B1FA2" },
+  Pending: { bg: "#9CA3AF", text: "#FFFFFF" },
+  "In-Progress": { bg: "#F59E0B", text: "#FFFFFF" },
+  Verified: { bg: "#1D4ED8", text: "#FFFFFF" },
+  Invalid: { bg: "#EF4444", text: "#FFFFFF" },
+  Resolved: { bg: "#16A34A", text: "#FFFFFF" },
+  Closed: { bg: "#B91C1C", text: "#FFFFFF" },
 }
 
 const getNormalizedStatus = (status?: string | null) => {
@@ -77,9 +65,8 @@ const getNormalizedStatus = (status?: string | null) => {
   if (s === "pending" || s === "new" || s === "submitted") return "Pending"
   if (s === "in_progress" || s === "in-progress") return "In-Progress"
   if (s === "resolved") return "Resolved"
-  if (s === "verified_valid" || s === "valid" || s === "verified") return "Resolved"
-  if (s === "verified_false" || s === "invalid") return "Rejected"
-  if (s === "rejected") return "Rejected"
+  if (s === "verified_valid" || s === "valid" || s === "verified") return "Verified"
+  if (s === "verified_false" || s === "invalid") return "Invalid"
   if (s === "closed") return "Closed"
   return "Pending"
 }
@@ -92,19 +79,24 @@ const getStatusBadge = (status?: string | null) => {
 const formatTime = (dateStr?: string) => {
   if (!dateStr) return ""
   const d = new Date(dateStr)
-  const mins = Math.floor((Date.now() - d.getTime()) / 60000)
-  if (mins < 60) return `${mins} mins ago`
-  const hrs = Math.floor(mins / 60)
-  return `${hrs} hour${hrs > 1 ? "s" : ""} ago`
+  if (isNaN(d.getTime())) return "Unknown time"
+  return d.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
 }
 
 export default function ReportsListScreen() {
   const router = useRouter()
   const [reports, setReports] = useState<ReportItem[]>([])
-  const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [query, setQuery] = useState("")
+  const { unreadCount } = useNotifications()
 
   const fetchReports = useCallback(async () => {
     try {
@@ -123,20 +115,7 @@ export default function ReportsListScreen() {
     }
   }, [])
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const token = await getUserToken()
-      if (token) {
-        const res = await apiGetNotifications(token)
-        if (res?.status === "success") {
-          setNotifications(res.notifications || [])
-        }
-      }
-    } catch (err) {
-      console.error("fetchNotifications:", err)
-      setNotifications([])
-    }
-  }, [])
+
 
   useEffect(() => {
     fetchReports()
@@ -145,15 +124,13 @@ export default function ReportsListScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchReports()
-      fetchNotifications()
-    }, [fetchReports, fetchNotifications])
+    }, [fetchReports])
   )
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     fetchReports()
-    fetchNotifications()
-  }, [fetchReports, fetchNotifications])
+  }, [fetchReports])
 
   const filtered = reports.filter((r) =>
     (r.category_name || r.title || "")
@@ -198,9 +175,9 @@ export default function ReportsListScreen() {
                   backgroundColor="rgba(214,40,40,0.1)"
                 >
                   <FontAwesome name="bell" size={16} color="#D62828" />
-                  {notifications.length > 0 && (
+                  {unreadCount > 0 && (
                     <View style={styles.bellCount}>
-                      <Text fontSize={11} color="#fff">{notifications.length}</Text>
+                      <Text fontSize={11} color="#fff">{unreadCount}</Text>
                     </View>
                   )}
                 </View>
@@ -227,7 +204,7 @@ export default function ReportsListScreen() {
                 />
               </XStack>
 
-              <Button
+              {/* <Button
                 width={44}
                 height={44}
                 borderRadius={12}
@@ -238,8 +215,8 @@ export default function ReportsListScreen() {
                 justifyContent="center"
                 pressStyle={{ backgroundColor: "$muted" }}
               >
-                <Filter size={18} color="$mutedFg" />
-              </Button>
+                <Filter size={28} color="$mutedFg" />
+              </Button> */}
             </XStack>
           </YStack>
 
@@ -256,7 +233,6 @@ export default function ReportsListScreen() {
             ) : (
               filtered.map((r, i) => {
                 const Icon = getIcon(r.category_name)
-                const priorityColor = getPriorityColor(r.priority)
                 const normalized = getNormalizedStatus(r.status)
                 const badge = getStatusBadge(r.status)
                 return (
@@ -297,13 +273,7 @@ export default function ReportsListScreen() {
                             </Text>
                           </YStack>
                         </XStack>
-                        <View
-                          width={12}
-                          height={12}
-                          borderRadius={999}
-                          backgroundColor={priorityColor}
-                          marginTop={4}
-                        />
+
                       </XStack>
 
                       <XStack alignItems="center" gap={8} marginBottom={12} backgroundColor="$muted" borderRadius={12} paddingHorizontal={12} paddingVertical={8}>
@@ -325,9 +295,7 @@ export default function ReportsListScreen() {
                           </Text>
                         </View>
 
-                        <Text fontSize={11} color={priorityColor} fontWeight="500">
-                          Priority: {r.priority}
-                        </Text>
+
                       </XStack>
                     </Card>
                   </MotiView>
@@ -355,12 +323,12 @@ export default function ReportsListScreen() {
               </Text>
             </Button>
 
-            <Button unstyled flexDirection="column" alignItems="center" onPress={() => router.push("/(bfp)/nearby")}>
+            {/* <Button unstyled flexDirection="column" alignItems="center" onPress={() => router.push("/(bfp)/nearby")}>
               <MapPin size={20} color="#9E9E9E" />
               <Text fontSize={11} color="#9E9E9E">
                 Nearby
               </Text>
-            </Button>
+            </Button> */}
 
             <Button unstyled flexDirection="column" alignItems="center" onPress={() => router.push("/(bfp)/profile")}>
               <User size={20} color="#9E9E9E" />

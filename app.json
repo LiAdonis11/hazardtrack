@@ -1,41 +1,74 @@
 {
   "expo": {
-    "name": "hazardtrack-mobile",
+    "name": "hazardtrack",
     "slug": "hazardtrack",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logos/hazartrack-logo.png",
     "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/logos/hazartrack-logo.png",
+      "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.liadonis11.hazardtrack",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
+      "useNextNotificationsApi": true,
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
-      "package": "com.liadonis11.hazardtrack"
-    },
+      "package": "com.liadonis11.hazardtrack",
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "enableHermes": true,
+      "enableProguardInReleaseBuilds": true,
+      "proguardRules": "-keep class com.airbnb.android.react.maps.** { *; }\n-keep class com.google.android.gms.maps.** { *; }\n-keep class com.google.android.gms.location.** { *; }\n-keep class com.google.android.gms.common.** { *; }\n-keep class com.facebook.react.views.view.** { *; }"
+    }
+,
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logos/hazartrack-logo.png"
     },
     "plugins": [
       "expo-font",
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logos/hazartrack-logo.png",
+          "color": "#D62828",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          },
+          "ios": {}
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": "c53f8262-7193-4709-8cd6-1aed96b75c80"
-      }
+        "projectId": "e970ef7c-65b0-44f7-9aa9-3ad36994fb22"
+      },
+      "router": {}
     },
-    "owner": "liadonis11",
+    "owner": "laidonis",
     "scheme": "hazardtrack-mobile"
   }
 }

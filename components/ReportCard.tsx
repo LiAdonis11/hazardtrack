@@ -43,10 +43,9 @@ const getNormalizedStatus = (status?: string | null) => {
   if (s === 'pending' || s === 'new' || s === 'submitted') return 'Pending';
   if (s === 'in_progress' || s === 'in-progress') return 'In-Progress';
   if (s === 'resolved') return 'Resolved';
-  if (s === 'rejected') return 'Rejected';
   if (s === 'closed') return 'Closed';
-  if (s === 'verified_valid' || s === 'valid' || s === 'verified') return 'Resolved';
-  if (s === 'verified_false' || s === 'invalid') return 'Rejected';
+  if (s === 'verified_valid' || s === 'valid' || s === 'verified') return 'Verified';
+  if (s === 'verified_false' || s === 'invalid') return 'Invalid';
   return 'Pending';
 };
 
@@ -55,32 +54,32 @@ const getStatusInfo = (status?: string | null) => {
   switch (normalized) {
     case 'In-Progress':
       return {
-        bg: '#FFF4E6',
-        border: '#FFE0B2',
+        bg: '#FEF3C7',
+        border: '#FCD34D',
         text: '🚨 BFP is actively working on this report'
       };
     case 'Resolved':
       return {
-        bg: '#E8F5E9',
-        border: '#C8E6C9',
+        bg: '#DCFCE7',
+        border: '#86EFAC',
         text: '✅ Hazard has been resolved and verified safe'
       };
-    case 'Rejected':
+    case 'Verified':
       return {
-        bg: '#FFEBEE',
-        border: '#FFCDD2',
-        text: '❌ Report was rejected - please check details'
+        bg: '#DBEAFE',
+        border: '#60A5FA',
+        text: '✅ Report has been verified by BFP'
       };
     case 'Closed':
       return {
-        bg: '#F3E5F5',
-        border: '#E1BEE7',
+        bg: '#F1F5F9',
+        border: '#CBD5E1',
         text: '🔒 Report has been closed'
       };
     default:
       return {
-        bg: '#FFF8E1',
-        border: '#FFECB3',
+        bg: '#F3F4F6',
+        border: '#D1D5DB',
         text: '🕓 Awaiting BFP review'
       };
   }

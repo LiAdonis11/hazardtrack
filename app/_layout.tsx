@@ -17,7 +17,12 @@ import { useColorScheme } from 'react-native';
 import { getUserToken, getUserData } from '../lib/storage';
 import { apiSavePushToken } from '../lib/api';
 import { AuthProvider } from '../context/AuthContext';
+import { NotificationsProvider } from '../context/NotificationsContext';
 import SplashScreen from './SplashScreen';
+import NotificationHandler from './NotificationHandler';
+import '../lib/firebaseInit'; // Initialize Firebase
+import { setupFirebaseMessaging, setupMessageListeners } from '../lib/firebaseSetup';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,7 +87,10 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
           <AuthProvider>
-            <RootLayoutNav />
+            <NotificationsProvider>
+              <NotificationHandler />
+              <RootLayoutNav />
+            </NotificationsProvider>
           </AuthProvider>
         </ThemeProvider>
       </TamaguiProvider>
@@ -97,6 +105,7 @@ function RootLayoutNav() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [authCheckTrigger, setAuthCheckTrigger] = useState(0);
+  const [pushTokenRegistered, setPushTokenRegistered] = useState(false);
 
   async function registerForPushNotificationsAsync(Notifications: any) {
     // Skip push notifications in Expo Go as they are not supported since SDK 53
@@ -125,8 +134,12 @@ function RootLayoutNav() {
       alert('Failed to get push token for push notification!');
       return;
     }
-    token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log(token);
+    // Get Expo push token for mobile
+    token = (await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas.projectId,
+    })).data;
+    console.log('Expo Push Token:', token);
+
 
     // Save the token to your backend
     const userToken = await getUserToken();
@@ -146,6 +159,53 @@ function RootLayoutNav() {
     }
   }, [colorScheme]);
 
+  // Setup push notifications once when component mounts
+  useEffect(() => {
+    const setupPushNotifications = async () => {
+      if (pushTokenRegistered) return; // Already registered
+
+      try {
+        console.log('Setting up push notifications...');
+        if (Platform.OS === 'web') {
+          // Setup Firebase messaging for web
+          console.log('Setting up Firebase messaging for web');
+          const fcmToken = await setupFirebaseMessaging();
+          if (fcmToken) {
+            // Save FCM token to backend for web
+            const userToken = await getUserToken();
+            if (userToken) {
+              await apiSavePushToken(userToken, fcmToken);
+              setPushTokenRegistered(true);
+            }
+          }
+          setupMessageListeners();
+        } else {
+          // Setup Expo notifications for mobile
+          console.log('Setting up Expo notifications for mobile');
+          const Notifications = require('expo-notifications');
+          console.log('Notifications module imported:', !!Notifications);
+          if (Notifications) {
+            console.log('Calling registerForPushNotificationsAsync');
+            await registerForPushNotificationsAsync(Notifications);
+            setPushTokenRegistered(true);
+            console.log('Push notifications registered successfully');
+          } else {
+            console.log('Notifications API not available - module is null/undefined');
+          }
+        }
+      } catch (error) {
+        console.log('Failed to setup notifications:', error);
+      }
+    };
+
+    // Delay setup slightly to ensure all modules are loaded
+    const timer = setTimeout(() => {
+      setupPushNotifications();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [pushTokenRegistered]);
+
   useEffect(() => {
     console.log('🔄 Authentication check useEffect triggered, trigger:', authCheckTrigger);
     const checkAuth = async () => {
@@ -156,30 +216,6 @@ function RootLayoutNav() {
         console.log('User data retrieved:', userData);
         setUserRole(userData?.role || null);
         setIsAuthenticated(true);
-        // Register for push notifications after user is authenticated (skip on web)
-        if (Platform.OS !== 'web') {
-          (async () => {
-            try {
-              const { default: Notifications } = await import('expo-notifications');
-              if (Notifications && Notifications.setNotificationHandler) {
-                Notifications.setNotificationHandler({
-                  handleNotification: async () => ({
-                    shouldShowAlert: true,
-                    shouldPlaySound: false,
-                    shouldSetBadge: false,
-                    shouldShowBanner: true,
-                    shouldShowList: true,
-                  }),
-                });
-                await registerForPushNotificationsAsync(Notifications);
-              } else {
-                console.log('Notifications API not available');
-              }
-            } catch (error) {
-              console.log('Failed to setup notifications:', error);
-            }
-          })();
-        }
       } else {
         console.log('User not logged in, setting role to null');
         setUserRole(null);
@@ -223,7 +259,7 @@ function RootLayoutNav() {
 
     if (isAuthenticated && !inStackGroup && !inBfpGroup && !isReportDetailsPage) {
       // Route based on user role
-      if (userRole === 'bfp_personnel' || userRole === 'inspector') {
+      if (userRole === 'inspector') {
         console.log('Redirecting BFP personnel to (bfp)');
         router.replace('/(bfp)');
       } else {

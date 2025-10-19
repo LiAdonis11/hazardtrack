@@ -1,5 +1,5 @@
-import NearbyInspectionsScreenOptimized from './NearbyInspectionsScreenOptimized'
+// import NearbyInspectionsScreenOptimized from './NearbyInspectionsScreenOptimized'
 
-export default function NearbyPage() {
-  return <NearbyInspectionsScreenOptimized />
-}
+// export default function NearbyPage() {
+//   return <NearbyInspectionsScreenOptimized />
+// }

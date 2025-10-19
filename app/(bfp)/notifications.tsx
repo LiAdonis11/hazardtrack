@@ -1,66 +1,18 @@
 // app/(bfp)/NotificationsScreen.tsx
-import React, { useState, useEffect } from "react"
-import { ActivityIndicator, StyleSheet, Dimensions, TouchableOpacity, ScrollView, RefreshControl, Alert } from "react-native"
+import React from "react"
+import { ActivityIndicator, StyleSheet, Dimensions, TouchableOpacity, ScrollView, RefreshControl } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { YStack, XStack, Text, View, Card } from "tamagui"
 import FontAwesome from "@expo/vector-icons/FontAwesome"
 import { useRouter } from "expo-router"
-import { apiGetNotifications, apiMarkNotificationRead } from "../../lib/api"
-import { getUserToken } from "../../lib/storage"
+import { useNotifications } from "../../context/NotificationsContext"
 
 const { width } = Dimensions.get("window")
 const HEADER_RED = "#D62828"
 
 export default function NotificationsScreen() {
   const router = useRouter()
-  const [notifications, setNotifications] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchNotifications = async () => {
-    const token = await getUserToken()
-    if (token) {
-      const res = await apiGetNotifications(token)
-      if (res?.status === "success") {
-        setNotifications(res.notifications)
-      }
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    fetchNotifications()
-  }, [])
-
-  const onRefresh = async () => {
-    setRefreshing(true)
-    try {
-      await fetchNotifications()
-    } catch (error) {
-      console.error('Refresh error:', error)
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
-  const markAsRead = async (notificationId: number) => {
-    const token = await getUserToken()
-    if (!token) return
-    try {
-      const res = await apiMarkNotificationRead(token, notificationId)
-      if (res?.status === "success") {
-        // Update local state to mark as read
-        setNotifications(prev =>
-          prev.map(n => n.id === notificationId ? { ...n, is_read: 1 } : n)
-        )
-      } else {
-        Alert.alert("Error", "Failed to mark notification as read")
-      }
-    } catch (error) {
-      console.error("Error marking notification as read:", error)
-      Alert.alert("Error", "Failed to mark notification as read")
-    }
-  }
+  const { notifications, loading, refreshing, onRefresh, markAsRead } = useNotifications()
 
   if (loading) {
     return (
@@ -113,7 +65,14 @@ export default function NotificationsScreen() {
             notifications.map((item, i) => (
               <TouchableOpacity
                 key={i}
-                onPress={() => markAsRead(item.id)}
+                onPress={() => {
+                  // Check if notification has report_id and navigate to report details
+                  if (item.report_id) {
+                    router.push(`/(bfp)/ReportDetails?id=${item.report_id}`);
+                  } else {
+                    markAsRead(item.id);
+                  }
+                }}
                 activeOpacity={0.7}
               >
                 <Card

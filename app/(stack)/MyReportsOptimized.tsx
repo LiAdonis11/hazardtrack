@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, memo } from "react"
-import { FlatList, RefreshControl, Platform, TouchableOpacity } from "react-native"
+import { FlatList, RefreshControl, Platform, TouchableOpacity, ActivityIndicator } from "react-native"
 import { YStack, XStack, Text, Input, View, Theme } from "tamagui"
 import { Pressable } from "react-native"
 import { ArrowLeft, Search, Filter } from "@tamagui/lucide-icons"
@@ -35,16 +35,15 @@ const COLORS = {
   warningYellow: "#FBC02D",
 }
 
-const getNormalizedStatus = (status?: string | null): string => {
+const getNormalizedStatus = (status?: string | null) => {
   if (!status) return "Pending"
   const s = status.toLowerCase()
   if (s === "pending" || s === "new" || s === "submitted") return "Pending"
   if (s === "in_progress" || s === "in-progress") return "In-Progress"
   if (s === "resolved") return "Resolved"
-  if (s === "rejected") return "Rejected"
+  if (s === "verified_valid" || s === "valid" || s === "verified") return "Verified"
+  if (s === "verified_false" || s === "invalid") return "Invalid"
   if (s === "closed") return "Closed"
-  if (s === "verified_valid" || s === "valid" || s === "verified") return "Resolved"
-  if (s === "verified_false" || s === "invalid") return "Rejected"
   return "Pending"
 }
 
@@ -76,7 +75,8 @@ const MyReportsOptimized = memo(() => {
     Pending: reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "Pending").length,
     "In-Progress": reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "In-Progress").length,
     Resolved: reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "Resolved").length,
-    Rejected: reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "Rejected").length,
+    Verified: reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "Verified").length,
+    // Rejected: reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "Rejected").length,
     Closed: reports.filter((r: ReportItem) => getNormalizedStatus(r.status) === "Closed").length,
   }), [reports])
 
@@ -145,7 +145,7 @@ const MyReportsOptimized = memo(() => {
             { key: "Pending", count: stats.Pending, color: COLORS.warningYellow },
             { key: "In-Progress", count: stats["In-Progress"], color: COLORS.warningOrange },
             { key: "Resolved", count: stats.Resolved, color: COLORS.successGreen },
-            { key: "Rejected", count: stats.Rejected, color: COLORS.fireRed },
+            { key: "Verified", count: stats.Verified, color: COLORS.infoBlue },
           ].map((s) => {
             const active = selectedStatus === s.key
             return (
@@ -177,9 +177,13 @@ const MyReportsOptimized = memo(() => {
 
   const ListEmpty = useMemo(() => (
     <YStack alignItems="center" marginTop={40} paddingHorizontal={16}>
-      <Text color={COLORS.mutedFg} textAlign="center">
-        {isLoading ? "Loading reports..." : "No reports found."}
-      </Text>
+      {isLoading ? (
+        <ActivityIndicator size="large" color={COLORS.fireRed} />
+      ) : (
+        <Text color={COLORS.mutedFg} textAlign="center">
+          No reports found.
+        </Text>
+      )}
     </YStack>
   ), [isLoading])
 
