@@ -1,0 +1,91 @@
+# EAS Build ignore file
+# Files and directories listed here will not be uploaded to EAS Build
+
+# Dependencies
+node_modules/
+vendor/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output/
+
+# Production
+dist/
+build/
+.next/
+out/
+
+# Misc
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Local env files
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Uploads and temporary files
+uploads/
+temp/
+tmp/
+*.tmp
+
+# Build artifacts
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# Gradle
+# Do NOT ignore Gradle wrapper directories; they are required for builds
+# Leaving cache ignores under android/.gradle is fine, but keep android/gradle
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+README.md
+
+# Test files
+*.test.js
+*.spec.js
+__tests__/
+
+# Composer
+composer.lock
+composer.json
+
+# Admin token (sensitive)
+admin_token.txt
+
+# Internal files
+InternalBytecode.js
+AndroidManifest.xml
+

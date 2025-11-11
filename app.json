@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/logos/hazartrack-logo.png",
     "userInterfaceStyle": "light",
-    "jsEngine": "hermes",
     "splash": {
       "image": "./assets/logos/hazartrack-logo.png",
       "resizeMode": "cover",
@@ -24,18 +23,20 @@
       }
     },
     "android": {
-      "useNextNotificationsApi": true,
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.liadonis11.hazardtrack",
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "enableHermes": true,
-      "enableProguardInReleaseBuilds": true,
-      "proguardRules": "-keep class com.airbnb.android.react.maps.** { *; }\n-keep class com.google.android.gms.maps.** { *; }\n-keep class com.google.android.gms.location.** { *; }\n-keep class com.google.android.gms.common.** { *; }\n-keep class com.facebook.react.views.view.** { *; }"
-    }
-,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
     "web": {
       "favicon": "./assets/logos/hazartrack-logo.png"
     },
@@ -64,11 +65,11 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "e970ef7c-65b0-44f7-9aa9-3ad36994fb22"
+        "projectId": "0f3ab0f9-7806-4d0f-83f6-fa961c1d962b"
       },
       "router": {}
     },
-    "owner": "laidonis",
+    "owner": "hera200318",
     "scheme": "hazardtrack-mobile"
   }
 }

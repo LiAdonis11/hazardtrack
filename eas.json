@@ -11,19 +11,26 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
-      }
+        "buildType": "apk",
+        "env": {
+          "NODE_ENV": "production",
+          "EXPO_PUBLIC_TAMAGUI_TARGET": "native"
+        }
+      },
+      "prebuildCommand": "chmod +x eas-build-pre-install.sh && ./eas-build-pre-install.sh"
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "environment": "production",
+      
         "env": {
           "NODE_ENV": "production",
           "EXPO_PUBLIC_TAMAGUI_TARGET": "native"
         }
-      }
+      },
+      "prebuildCommand": "chmod +x eas-build-pre-install.sh && ./eas-build-pre-install.sh"
     }
   },
   "submit": {

@@ -17,6 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'tamagui';
 import { API_URL } from '../lib/config';
 import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import { apiSavePushToken } from '../lib/api';
 
 const PasswordInput = React.forwardRef<RNTextInput, any>(
   ({ value, onChangeText, placeholder, accessibilityLabel, onSubmitEditing }, ref) => {
@@ -155,6 +158,39 @@ export default function RegisterScreen() {
       const result = await response.json();
 
       if (result.status === 'success') {
+        // 🔔 Register push token after successful registration
+        try {
+          console.log('📱 Registering push token after registration...');
+
+          // Only register in production builds (storeClient or standalone)
+          if (Constants.executionEnvironment === 'storeClient' || Constants.executionEnvironment === 'standalone') {
+            // Get Expo push token
+            const tokenData = await Notifications.getExpoPushTokenAsync({
+              projectId: Constants.expoConfig?.extra?.eas.projectId,
+            });
+            const expoToken = tokenData.data;
+
+            if (expoToken && result.token) {
+              console.log('✅ Expo token obtained:', expoToken.substring(0, 30) + '...');
+
+              // Save token to backend using the token from registration response
+              const tokenSaved = await apiSavePushToken(result.token, expoToken);
+              if (tokenSaved) {
+                console.log('✅ Push token registered successfully after registration');
+              } else {
+                console.warn('⚠️ Failed to save push token after registration');
+              }
+            } else {
+              console.warn('⚠️ Failed to get Expo token or auth token');
+            }
+          } else {
+            console.log('ℹ️ Skipping push token registration in Expo Go');
+          }
+        } catch (tokenError) {
+          console.error('❌ Error registering push token:', tokenError);
+          // Don't fail registration if token registration fails
+        }
+
         setSuccessMessage(
           `Welcome ${fullname}! Your account has been created successfully.`
         );

@@ -6,6 +6,7 @@ import {
   View,
   ActivityIndicator,
   Image,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Text, YStack, XStack, Card, Input } from "tamagui";
@@ -13,8 +14,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Mail, Lock } from "@tamagui/lucide-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { setUserData } from "../lib/storage";
-import { apiLogin } from "../lib/api";
+import { apiLogin, apiSavePushToken } from "../lib/api";
 import { useAuth } from '../context/AuthContext';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
 export default function Login() {
   const router = useRouter();
@@ -37,6 +40,40 @@ export default function Login() {
       if (res.status === "success") {
         await setToken(res.token);
         await setUserData(res.user);
+
+        // 🔔 Register push token after successful login
+        try {
+          console.log('📱 Registering push token after login...');
+
+          // Only register in production builds (storeClient or standalone)
+          // Skip in Expo Go (executionEnvironment === 'storeClient' means production)
+          if (Constants.executionEnvironment === 'storeClient' || Constants.executionEnvironment === 'standalone') {
+            // Get Expo push token
+            const tokenData = await Notifications.getExpoPushTokenAsync({
+              projectId: Constants.expoConfig?.extra?.eas.projectId,
+            });
+            const expoToken = tokenData.data;
+
+            if (expoToken) {
+              console.log('✅ Expo token obtained:', expoToken.substring(0, 30) + '...');
+
+              // Save token to backend
+              const tokenSaved = await apiSavePushToken(res.token, expoToken);
+              if (tokenSaved) {
+                console.log('✅ Push token registered successfully after login');
+              } else {
+                console.warn('⚠️ Failed to save push token after login');
+              }
+            } else {
+              console.warn('⚠️ Failed to get Expo token');
+            }
+          } else {
+            console.log('ℹ️ Skipping push token registration in Expo Go');
+          }
+        } catch (tokenError) {
+          console.error('❌ Error registering push token:', tokenError);
+          // Don't fail login if token registration fails
+        }
 
         const userRole = res.user.role;
         if (userRole === "inspector" || userRole === "bfp_personnel") {

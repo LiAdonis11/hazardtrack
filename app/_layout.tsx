@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 import Constants from 'expo-constants';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as Notifications from 'expo-notifications';
 
 import { StatusBar } from 'expo-status-bar';
 import { TamaguiProvider } from 'tamagui';
@@ -109,7 +110,7 @@ function RootLayoutNav() {
 
   async function registerForPushNotificationsAsync(Notifications: any) {
     // Skip push notifications in Expo Go as they are not supported since SDK 53
-    if (Constants.executionEnvironment === 'storeClient') {
+    if (Constants.executionEnvironment !== 'storeClient' && Constants.executionEnvironment !== 'standalone') {
       console.log('Skipping push notifications in Expo Go');
       return;
     }
@@ -165,36 +166,153 @@ function RootLayoutNav() {
       if (pushTokenRegistered) return; // Already registered
 
       try {
-        console.log('Setting up push notifications...');
-        if (Platform.OS === 'web') {
-          // Setup Firebase messaging for web
-          console.log('Setting up Firebase messaging for web');
-          const fcmToken = await setupFirebaseMessaging();
-          if (fcmToken) {
-            // Save FCM token to backend for web
-            const userToken = await getUserToken();
-            if (userToken) {
-              await apiSavePushToken(userToken, fcmToken);
-              setPushTokenRegistered(true);
-            }
-          }
-          setupMessageListeners();
-        } else {
-          // Setup Expo notifications for mobile
-          console.log('Setting up Expo notifications for mobile');
-          const Notifications = require('expo-notifications');
-          console.log('Notifications module imported:', !!Notifications);
-          if (Notifications) {
-            console.log('Calling registerForPushNotificationsAsync');
-            await registerForPushNotificationsAsync(Notifications);
-            setPushTokenRegistered(true);
-            console.log('Push notifications registered successfully');
-          } else {
-            console.log('Notifications API not available - module is null/undefined');
+        console.log('🔔 Setting up Expo push notifications...');
+
+        // Skip push notifications in Expo Go as they are not supported since SDK 53
+        if (Constants.executionEnvironment !== 'storeClient' && Constants.executionEnvironment !== 'standalone') {
+          console.log('ℹ️ Skipping push notifications in Expo Go');
+          return;
+        }
+
+        // Setup notification channel for Android
+        if (Platform.OS === 'android') {
+          console.log('📱 Setting up Android notification channel...');
+
+          // Create multiple notification channels for different priority levels
+          // This is required for Android 8.0+ (API 26+)
+          try {
+            // High priority channel for important notifications
+            await Notifications.setNotificationChannelAsync('high', {
+              name: 'High Priority',
+              importance: Notifications.AndroidImportance.MAX,
+              vibrationPattern: [0, 250, 250, 250],
+              lightColor: '#FF231F7C',
+              enableVibration: true,
+              enableLights: true,
+              sound: 'default',
+              bypassDnd: true,
+            });
+
+            // Default channel
+            await Notifications.setNotificationChannelAsync('default', {
+              name: 'Default',
+              importance: Notifications.AndroidImportance.HIGH,
+              vibrationPattern: [0, 250, 250, 250],
+              lightColor: '#FF231F7C',
+              enableVibration: true,
+              enableLights: true,
+              sound: 'default',
+            });
+
+            // Low priority channel
+            await Notifications.setNotificationChannelAsync('low', {
+              name: 'Low Priority',
+              importance: Notifications.AndroidImportance.LOW,
+              enableVibration: false,
+              enableLights: false,
+            });
+
+            console.log('✅ Android notification channels configured');
+          } catch (error) {
+            console.log('⚠️ Error setting up notification channels:', error);
           }
         }
+
+        // Request permissions
+        console.log('🔐 Requesting push notification permissions...');
+
+        try {
+          // Get current permission status
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          console.log('📋 Current notification permission status:', existingStatus);
+
+          let finalStatus = existingStatus;
+
+          // For Android 13+, we need to request POST_NOTIFICATIONS permission
+          // For Android 12 and below, notifications are granted by default
+          if (existingStatus !== 'granted') {
+            console.log('🔔 Requesting notification permissions...');
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+            console.log('📋 Permission request result:', status);
+          }
+
+          if (finalStatus !== 'granted') {
+            console.log('⚠️ Push notification permission not granted');
+            console.log('💡 User may have denied permissions. Notifications will not work.');
+            // Don't return - continue anyway, user can enable later
+          } else {
+            console.log('✅ Push notification permissions granted');
+          }
+        } catch (error) {
+          console.log('⚠️ Error requesting permissions:', error);
+          // Continue anyway - permissions might be granted already
+        }
+
+        // Get Expo push token
+        console.log('🎫 Getting Expo push token...');
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: Constants.expoConfig?.extra?.eas.projectId,
+        });
+        const expoToken = tokenData.data;
+
+        if (!expoToken) {
+          console.log('❌ Failed to get Expo push token');
+          return;
+        }
+
+        console.log('✅ Expo Push Token obtained:', expoToken.substring(0, 30) + '...');
+
+        // Save the token to backend
+        const userToken = await getUserToken();
+        if (userToken && expoToken) {
+          console.log('💾 Saving push token to backend...');
+          const saved = await apiSavePushToken(userToken, expoToken);
+          if (saved) {
+            setPushTokenRegistered(true);
+            console.log('✅ Expo push token saved to backend successfully');
+          } else {
+            console.log('⚠️ Failed to save push token to backend');
+          }
+        } else {
+          console.log('⚠️ Missing userToken or expoToken');
+        }
+
+        // Setup notification handler for both foreground and background
+        console.log('🎯 Setting up notification handler...');
+        Notifications.setNotificationHandler({
+          handleNotification: async (notification) => {
+            console.log('📬 Notification received:', notification);
+
+            // Always show notifications, regardless of app state
+            return {
+              shouldShowAlert: true,
+              shouldPlaySound: true,
+              shouldSetBadge: true,
+              shouldShowBanner: true,
+              shouldShowList: true,
+            };
+          },
+        });
+        console.log('✅ Notification handler configured');
+
+        // Setup notification received listener
+        const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
+          console.log('📨 Notification received in foreground:', notification);
+        });
+
+        // Setup notification response listener
+        const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+          console.log('👆 Notification response:', response);
+        });
+
+        return () => {
+          notificationListener.remove();
+          responseListener.remove();
+        };
+
       } catch (error) {
-        console.log('Failed to setup notifications:', error);
+        console.log('❌ Failed to setup Expo notifications:', error);
       }
     };
 

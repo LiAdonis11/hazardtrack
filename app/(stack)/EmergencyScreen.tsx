@@ -29,8 +29,14 @@ const emergencyContacts = [
     type: "police",
   },
   {
-    title: "BFP Tagudin",
+    title: "BFP Tagudin (Primary)",
     number: "0999-750-8975",
+    description: "Bureau of Fire Protection - Tagudin Station",
+    type: "bfp",
+  },
+  {
+    title: "BFP Tagudin (Alternate)",
+    number: "0917-186-2911",
     description: "Bureau of Fire Protection - Tagudin Station",
     type: "bfp",
   },

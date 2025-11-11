@@ -172,9 +172,9 @@ export default function ReportsListScreen() {
                   borderRadius={18}
                   alignItems="center"
                   justifyContent="center"
-                  backgroundColor="rgba(214,40,40,0.1)"
+                  backgroundColor="rgba(255,255,255,0.15)"
                 >
-                  <FontAwesome name="bell" size={16} color="#D62828" />
+                  <FontAwesome name="bell" size={16} color="#000" />
                   {unreadCount > 0 && (
                     <View style={styles.bellCount}>
                       <Text fontSize={11} color="#fff">{unreadCount}</Text>
@@ -265,7 +265,7 @@ export default function ReportsListScreen() {
                             <Icon size={22} color="#D32F2F" />
                           </View>
                           <YStack flex={1} gap={4}>
-                            <Text fontSize={14} fontWeight="600" color="$darkGray">
+                            <Text fontSize={14} fontWeight="600" color="$darkGray" numberOfLines={1} ellipsizeMode="tail">
                               {r.category_name || r.title || ""}
                             </Text>
                             <Text fontSize={11} color="$mutedFg">

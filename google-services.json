@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "508600872047",
-    "project_id": "hazardtrack-2c10d",
-    "storage_bucket": "hazardtrack-2c10d.firebasestorage.app"
+    "project_number": "876406657397",
+    "project_id": "hazardtrack-86db8",
+    "storage_bucket": "hazardtrack-86db8.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:508600872047:android:375a6c058361482312319a",
+        "mobilesdk_app_id": "1:876406657397:android:4f9da01046e610e8d3433c",
         "android_client_info": {
           "package_name": "com.liadonis11.hazardtrack"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCycRsARlYo1skmMfKVAxXcXnFMnvoaLOs"
+          "current_key": "AIzaSyChHvGGjswR48futD9vsa2x5OExR9QIE-E"
         }
       ],
       "services": {

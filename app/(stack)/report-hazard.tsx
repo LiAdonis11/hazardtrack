@@ -708,6 +708,24 @@ const handleSubmit = useCallback(async () => {
                       <Text color="#fff" fontWeight="700">Call Emergency: 0999-750-8975</Text>
                     </XStack>
                   </Button>
+
+                  <Button
+                    onPress={() => {
+                      const phoneUrl = Platform.OS === "ios" ? "telprompt:0917-186-2911" : "tel:0917-186-2911"
+                      Linking.openURL(phoneUrl).catch(() => {
+                        Alert.alert("Call failed", "Unable to open phone app.")
+                      })
+                    }}
+                    borderRadius={8}
+                    backgroundColor={HEADER_RED}
+                    paddingHorizontal={18}
+                    paddingVertical={10}
+                  >
+                    <XStack alignItems="center" gap={8}>
+                      <Phone size={14} color="#fff" />
+                      <Text color="#fff" fontWeight="700">Call Emergency: 0917-186-2911</Text>
+                    </XStack>
+                  </Button>
                 </YStack>
               </Card>
 

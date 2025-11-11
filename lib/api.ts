@@ -718,8 +718,28 @@ export const apiGetInspectorAssignments = async (token: string) => {
 
 export const apiSavePushToken = async (token: string, pushToken: string) => {
   try {
-    console.log('Saving push token:', pushToken);
+    if (!token) {
+      console.error('❌ Cannot save push token: No auth token provided');
+      return false;
+    }
 
+    if (!pushToken) {
+      console.error('❌ Cannot save push token: No push token provided');
+      return false;
+    }
+
+    console.log('💾 Saving push token:', pushToken.substring(0, 30) + '...');
+
+    // Determine token type based on format
+    const tokenType = pushToken.startsWith('ExponentPushToken') ? 'expo' : 'fcm';
+    console.log('📝 Token type detected:', tokenType);
+
+    const requestBody = {
+      push_token: pushToken,
+      token_type: tokenType,
+    };
+
+    console.log('📤 Sending request to save_push_token.php');
     const res = await fetch(`${API_URL}/save_push_token.php`, {
       method: 'POST',
       headers: {
@@ -727,22 +747,74 @@ export const apiSavePushToken = async (token: string, pushToken: string) => {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        push_token: pushToken,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
-    console.log('savePushToken response status:', res.status);
+    console.log('📥 Response status:', res.status);
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('savePushToken error response:', errorText);
+      console.error('❌ savePushToken error response:', errorText);
       throw new Error(`HTTP error! status: ${res.status}`);
     }
 
-    return await res.json();
+    const responseData = await res.json();
+    console.log('✅ savePushToken response:', responseData);
+
+    if (responseData.status === 'success') {
+      console.log('✅ Push token saved successfully');
+      return true;
+    } else {
+      console.error('❌ Push token save failed:', responseData.message);
+      return false;
+    }
   } catch (error) {
+    console.error('❌ Error saving push token:', error);
     return handleApiError(error, 'savePushToken');
+  }
+};
+
+// New API function for sending cross-platform notifications
+export const apiSendCrossPlatformNotification = async (data: {
+  token: string,
+  to_user_id?: number,
+  to_role?: string,
+  title: string,
+  message: string,
+  report_id?: number,
+  notification_type?: string
+}) => {
+  try {
+    console.log('Sending cross-platform notification:', {
+      to_user_id: data.to_user_id,
+      to_role: data.to_role,
+      title: data.title,
+      notification_type: data.notification_type
+    });
+
+    const res = await fetch(`${API_URL}/send_cross_platform_notification.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${data.token}`,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(data),
+    });
+
+    console.log('sendCrossPlatformNotification response status:', res.status);
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('sendCrossPlatformNotification error response:', errorText);
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const responseData = await res.json();
+    console.log('sendCrossPlatformNotification response:', responseData);
+    return responseData;
+  } catch (error) {
+    return handleApiError(error, 'sendCrossPlatformNotification');
   }
 };
 

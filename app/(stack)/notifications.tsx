@@ -67,12 +67,12 @@ export default function NotificationsScreen() {
             notifications.map((item, i) => (
               <TouchableOpacity
                 key={i}
-                onPress={() => {
-                  // Check if notification has report_id and navigate to report details
+                onPress={async () => {
+                  // Mark as read first
+                  await markAsRead(item.id);
+                  // Then navigate if it has report_id
                   if (item.report_id) {
                     router.push(`/(stack)/ReportDetails?id=${item.report_id}`);
-                  } else {
-                    markAsRead(item.id);
                   }
                 }}
                 activeOpacity={0.7}

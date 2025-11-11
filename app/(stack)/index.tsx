@@ -191,10 +191,10 @@ export default function ResidentDashboard() {
       <View backgroundColor={HEADER_RED} paddingTop={18} paddingBottom={16}  paddingHorizontal={8} borderBottomLeftRadius={14} borderBottomRightRadius={14}>
         <SafeAreaView>
           <XStack justifyContent="space-between" alignItems="center">
-            <XStack alignItems="center" gap={12}>
+            <XStack alignItems="center" gap={12} flex={1}>
               <Image source={require("../../assets/images/logo.png")} style={{ width: 46, height: 46 }} resizeMode="contain" />
-              <View>
-                <Text color="#fff" fontSize={22} fontWeight="800">Welcome, {user?.fullname || "Juan"}!</Text>
+              <View flex={1}>
+                <Text color="#fff" fontSize={22} fontWeight="800" numberOfLines={1} ellipsizeMode="tail">Welcome, {user?.fullname || "Juan"}!</Text>
                 <Text color="#fff" fontSize={13} opacity={0.9}>Keep your community safe</Text>
               </View>
             </XStack>
@@ -213,7 +213,7 @@ export default function ResidentDashboard() {
                   justifyContent="center"
                   backgroundColor="rgba(255,255,255,0.06)"
                 >
-                  <FontAwesome name="bell" size={16} color="#fff" />
+                  <FontAwesome name="bell" size={16} color="#000" />
                   {unreadCount > 0 && (
                     <View style={styles.bellCount}>
                       <Text fontSize={11} color="#fff">{unreadCount}</Text>

@@ -1,10 +1,10 @@
-// Firebase configuration
+// Firebase configuration - Unified project for cross-platform
 export const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCycRsARlYo1skmMfKVAxXcXnFMnvoaLOs",
-  authDomain: "hazardtrack-2c10d.firebaseapp.com",
-  projectId: "hazardtrack-2c10d",
-  storageBucket: "hazardtrack-2c10d.firebasestorage.app",
-  messagingSenderId: "508600872047",
-  appId: "1:508600872047:android:375a6c058361482312319a",
+  apiKey: "AIzaSyChHvGGjswR48futD9vsa2x5OExR9QIE-E",
+  authDomain: "hazardtrack-86db8.firebaseapp.com",
+  projectId: "hazardtrack-86db8",
+  storageBucket: "hazardtrack-86db8.firebasestorage.app",
+  messagingSenderId: "876406657397",
+  appId: "1:876406657397:android:4f9da01046e610e8d3433c",
   measurementId: "G-XXXXXXXXXX" // Add this for web analytics if needed
 }
